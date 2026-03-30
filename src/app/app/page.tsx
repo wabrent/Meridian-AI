@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { Aptos, AptosConfig, Network, AccountAddress } from "@aptos-labs/ts-sdk";
-import { createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets, ShelbyBlobClient, ShelbyRPCClient, ShelbyClientConfig } from "@shelby-protocol/sdk/browser";
+import { createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets, ShelbyBlobClient, ShelbyClient, ShelbyClientConfig } from "@shelby-protocol/sdk/browser";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/components/WalletProvider";
 
@@ -56,93 +56,41 @@ export default function AppDashboard() {
     if (!account || !file) return;
 
     try {
-      // Initialize Aptos client with Shelbynet configuration
-      const aptosConfig = new AptosConfig({ 
-        network: Network.CUSTOM,
-        fullnode: process.env.NEXT_PUBLIC_SHELBY_FULLNODE_URL || "https://api.shelbynet.shelby.xyz/v1",
-        faucet: null,
-      });
-      const aptos = new Aptos(aptosConfig);
-
       setStatus("generating");
-      console.log("Generating Blob Commitments via ClayErasureCodingProvider...");
+      console.log("Starting upload process...");
       
       const provider = await createDefaultErasureCodingProvider();
       const arrayBuffer = await file.arrayBuffer();
       const data = new Uint8Array(arrayBuffer);
       
+      console.log("Generating commitments...");
       const commitments = await generateCommitments(provider, data);
+      console.log("Commitments generated:", commitments);
       
       setStatus("signing");
-      const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
       
-      const expirationMicros = (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000;
+      // Initialize ShelbyClient for RPC
+      const shelbyClient = new ShelbyClient({
+        network: "shelbynet",
+        apiKey: process.env.NEXT_PUBLIC_SHELBY_API_KEY || "",
+      });
       
-      console.log("Creating payload with ShelbyBlobClient...");
-      console.log("account:", account.address);
-      console.log("blobName:", file.name);
-      console.log("blobMerkleRoot:", commitments.blob_merkle_root);
-      console.log("raw_data_size:", commitments.raw_data_size);
-      console.log("numChunksets:", expectedTotalChunksets(commitments.raw_data_size));
-      console.log("expirationMicros:", expirationMicros);
+      console.log("Uploading blob via ShelbyClient RPC...");
+      console.log("Account:", account.address);
+      console.log("Blob name:", file.name);
+      console.log("Data length:", data.length);
       
-      // Use Shelby SDK's built-in payload creation
-      const payload = ShelbyBlobClient.createRegisterBlobPayload({
+      // Use ShelbyClient to handle both registration and upload
+      const result = await shelbyClient.rpc.putBlob({
         account: account.address,
         blobName: file.name,
-        blobMerkleRoot: commitments.blob_merkle_root,
-        numChunksets: expectedTotalChunksets(commitments.raw_data_size),
-        expirationMicros: expirationMicros,
-        blobSize: commitments.raw_data_size,
+        blobData: data,
       });
-
-      console.log("Payload created, waiting for wallet signature...");
-
-      console.log("Payload created:", JSON.stringify(payload, null, 2));
-      console.log("Submitting to Shelbynet via wallet...");
       
-      // Submit transaction through wallet
-      const response = await signAndSubmitTransaction({ data: payload });
+      console.log("Upload successful:", result);
       
-      console.log("Transaction submitted:", response.hash);
-      console.log("Waiting for transaction confirmation on Shelbynet...");
-      
-      // Wait for transaction using Shelbynet fullnode
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-
-      setStatus("uploading");
-      console.log("Blockchain registration successful. Uploading data chunks to RPC...");
-      
-      // Upload chunks via RPC
-      const rpcUrl = process.env.NEXT_PUBLIC_SHELBY_RPC_URL || "https://api.shelbynet.shelby.xyz/shelby";
-      const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY || "";
-      
-      const uploadResponse = await fetch(`${rpcUrl}/blob/${account.address.toString()}/${encodeURIComponent(file.name)}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/octet-stream',
-        },
-        body: data
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error(`Upload failed: ${uploadResponse.statusText}`);
-      }
-
-      console.log("Upload complete!");
       setStatus("success");
-      
-      // Add to history
-      setUploadedFiles(prev => [{
-        name: file.name,
-        size: file.size,
-        date: new Date().toISOString().split('T')[0],
-        txHash: response.hash.slice(0, 8) + "..."
-      }, ...prev]);
-
-      // Redirect to certificate
-      router.push(`/verify/${account.address.toString()}/${encodeURIComponent(file.name)}`);
+      console.log("File uploaded successfully!");
       
     } catch (error: any) {
       console.error(error);
