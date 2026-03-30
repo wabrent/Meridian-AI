@@ -68,6 +68,38 @@ export default function AppDashboard() {
       console.log("Commitments generated:", commitments);
       
       setStatus("signing");
+      console.log("Creating registration transaction...");
+      
+      // Create registration payload
+      const payload = ShelbyBlobClient.createRegisterBlobPayload({
+        account: account.address,
+        blobName: file.name,
+        blobMerkleRoot: commitments.blob_merkle_root,
+        numChunksets: expectedTotalChunksets(commitments.raw_data_size),
+        expirationMicros: (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000,
+        blobSize: commitments.raw_data_size,
+      });
+      
+      console.log("Payload:", payload);
+      
+      // Submit registration transaction via wallet
+      console.log("Submitting registration transaction...");
+      const response = await signAndSubmitTransaction({ data: payload });
+      console.log("Transaction submitted:", response.hash);
+      
+      // Initialize Aptos client to wait for confirmation
+      const aptosConfig = new AptosConfig({ 
+        network: Network.CUSTOM,
+        fullnode: process.env.NEXT_PUBLIC_SHELBY_FULLNODE_URL || "https://api.shelbynet.shelby.xyz/v1",
+      });
+      const aptos = new Aptos(aptosConfig);
+      
+      console.log("Waiting for transaction confirmation...");
+      await aptos.waitForTransaction({ transactionHash: response.hash });
+      console.log("Transaction confirmed!");
+      
+      setStatus("uploading");
+      console.log("Registering blob on Shelby RPC...");
       
       // Initialize ShelbyClient for RPC
       const shelbyClient = new ShelbyClient({
@@ -75,12 +107,7 @@ export default function AppDashboard() {
         apiKey: process.env.NEXT_PUBLIC_SHELBY_API_KEY || "",
       });
       
-      console.log("Uploading blob via ShelbyClient RPC...");
-      console.log("Account:", account.address);
-      console.log("Blob name:", file.name);
-      console.log("Data length:", data.length);
-      
-      // Use ShelbyClient to handle both registration and upload
+      // Now upload the blob data
       const result = await shelbyClient.rpc.putBlob({
         account: account.address,
         blobName: file.name,
