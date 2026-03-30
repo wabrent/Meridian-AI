@@ -80,23 +80,34 @@ export default function Home() {
         </section>
 
         {/* Marquee Ticker */}
-        <div className="border-y border-white/5 bg-[#0a0a0a] overflow-hidden py-4 flex items-center">
-          <div className="flex gap-16 animate-[scroll_20s_linear_infinite] whitespace-nowrap opacity-40 text-[11px] font-bold tracking-[0.2em] uppercase text-white">
-            <span>Shelby Protocol</span>
-            <span>Aptos</span>
-            <span>Petra Wallet</span>
-            <span>Proof of Origin</span>
-            <span>Shelbynet</span>
-            <span>Immutable</span>
-            <span>Permanent Storage</span>
-            {/* Duplicate for seamless loop */}
-            <span>Shelby Protocol</span>
-            <span>Aptos</span>
-            <span>Petra Wallet</span>
-            <span>Proof of Origin</span>
-            <span>Shelbynet</span>
-            <span>Immutable</span>
-            <span>Permanent Storage</span>
+        <div className="border-y border-white/5 bg-[#0a0a0a] overflow-hidden py-4">
+          <div className="marquee-container flex items-center">
+            <div className="marquee-content flex gap-16 whitespace-nowrap opacity-40 text-[11px] font-bold tracking-[0.2em] uppercase text-white">
+              <span className="inline-flex items-center"><span className="text-emerald-400">◆</span>&nbsp;Shelby</span>
+              <span>Shelby Protocol</span>
+              <span>Aptos</span>
+              <span>Petra Wallet</span>
+              <span>Proof of Origin</span>
+              <span>Shelbynet</span>
+              <span>Immutable</span>
+              <span>Permanent Storage</span>
+              <span>Decentralized</span>
+              <span>Blob Storage</span>
+              <span>Erasure Coding</span>
+              <span>Meridian</span>
+              <span className="inline-flex items-center"><span className="text-emerald-400">◆</span>&nbsp;Shelby</span>
+              <span>Shelby Protocol</span>
+              <span>Aptos</span>
+              <span>Petra Wallet</span>
+              <span>Proof of Origin</span>
+              <span>Shelbynet</span>
+              <span>Immutable</span>
+              <span>Permanent Storage</span>
+              <span>Decentralized</span>
+              <span>Blob Storage</span>
+              <span>Erasure Coding</span>
+              <span>Meridian</span>
+            </div>
           </div>
         </div>
 
@@ -104,6 +115,14 @@ export default function Home() {
           @keyframes scroll {
             0% { transform: translateX(0); }
             100% { transform: translateX(-50%); }
+          }
+          .marquee-container {
+            width: 200%;
+            overflow: hidden;
+          }
+          .marquee-content {
+            animation: scroll 30s linear infinite;
+            width: 200%;
           }
         `}} />
 
