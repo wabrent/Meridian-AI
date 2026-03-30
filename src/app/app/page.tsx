@@ -72,7 +72,8 @@ export default function AppDashboard() {
       
       // Create registration payload manually to ensure correct types
       const deployerAddress = "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
-      const blobNameHex = "0x" + Array.from(new TextEncoder().encode(file.name)).map(b => b.toString(16).padStart(2, '0')).join('');
+      // Blob name as hex without 0x prefix (like in explorer)
+      const blobNameHex = Array.from(new TextEncoder().encode(file.name)).map(b => b.toString(16).padStart(2, '0')).join('');
       const merkleRootHex = commitments.blob_merkle_root;
       const blobSizeVal = commitments.raw_data_size;
       const numChunks = expectedTotalChunksets(commitments.raw_data_size);
