@@ -88,12 +88,12 @@ export default function AppDashboard() {
           merkleRootHex,
           expiration.toString(),
           numChunks,
-          0
-        ] as any
+          "0"
+        ]
       };
       
       console.log("Manual payload args:", payload.functionArguments);
-      console.log("Arg 6 type:", typeof payload.functionArguments[6], "value:", payload.functionArguments[6]);
+      console.log("All arg types:", payload.functionArguments.map((a, i) => `${i}: ${typeof a} = ${a}`));
       
       // Submit registration transaction via wallet
       console.log("Submitting registration transaction...");
