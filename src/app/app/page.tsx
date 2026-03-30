@@ -70,14 +70,22 @@ export default function AppDashboard() {
       setStatus("signing");
       console.log("Creating registration transaction...");
       
-      // Create registration payload
+      // Create registration payload with explicit number conversion
+      const numChunksetsVal = Number(expectedTotalChunksets(commitments.raw_data_size));
+      const blobSizeVal = Number(commitments.raw_data_size);
+      const expirationMicrosVal = Number((Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000);
+      
+      console.log("numChunksets:", numChunksetsVal, typeof numChunksetsVal);
+      console.log("blobSize:", blobSizeVal, typeof blobSizeVal);
+      console.log("expirationMicros:", expirationMicrosVal, typeof expirationMicrosVal);
+      
       const payload = ShelbyBlobClient.createRegisterBlobPayload({
         account: account.address,
         blobName: file.name,
         blobMerkleRoot: commitments.blob_merkle_root,
-        numChunksets: expectedTotalChunksets(commitments.raw_data_size),
-        expirationMicros: (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000,
-        blobSize: commitments.raw_data_size,
+        numChunksets: numChunksetsVal,
+        expirationMicros: expirationMicrosVal,
+        blobSize: blobSizeVal,
       });
       
       console.log("Payload function:", payload.function);
