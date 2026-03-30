@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { Aptos, AptosConfig, Network, AccountAddress } from "@aptos-labs/ts-sdk";
-import { createDefaultErasureCodingProvider, generateCommitments, ShelbyBlobClient, ShelbyRPCClient, ShelbyClientConfig } from "@shelby-protocol/sdk/browser";
+import { createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets, ShelbyBlobClient, ShelbyRPCClient, ShelbyClientConfig } from "@shelby-protocol/sdk/browser";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/components/WalletProvider";
 
@@ -76,43 +76,24 @@ export default function AppDashboard() {
       setStatus("signing");
       const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
       
-      // Create payload using Aptos SDK proper format
-      // Calculate expiration: current time + 1 year in microseconds
-      const nowMicros = BigInt(Date.now()) * 1000n;
-      const oneYearMicros = 365n * 24n * 60n * 60n * 1000n * 1000n;
-      const expirationMicros = nowMicros + oneYearMicros;
+      console.log("Creating payload with ShelbyBlobClient...");
+      console.log("account:", account.address);
+      console.log("blobName:", file.name);
+      console.log("blobMerkleRoot:", commitments.blob_merkle_root);
+      console.log("raw_data_size:", commitments.raw_data_size);
+      console.log("numChunksets:", expectedTotalChunksets(commitments.raw_data_size));
       
-      // Convert to hex string (browser compatible)
-      const bytesToHex = (bytes: Uint8Array) => 
-        Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      
-      const blobNameHex = bytesToHex(new TextEncoder().encode(file.name));
-      const merkleRootHex = typeof commitments.blob_merkle_root === 'string' 
-        ? commitments.blob_merkle_root.replace('0x', '')
-        : bytesToHex(commitments.blob_merkle_root);
-      
-      const payload = {
-        function: `${deployerAddress}::blob_metadata::register_blob` as `${string}::${string}::${string}`,
-        typeArguments: [],
-        functionArguments: [
-          account.address,
-          `0x${blobNameHex}`,
-          `0x${data.length.toString(16)}`,
-          `0x${merkleRootHex}`,
-          `0x${expirationMicros.toString(16)}`,
-          `0x${commitments.chunkset_commitments.length.toString(16)}`,
-          `0x0`
-        ]
-      };
+      // Use Shelby SDK's built-in payload creation
+      const payload = ShelbyBlobClient.createRegisterBlobPayload({
+        account: account.address,
+        blobName: file.name,
+        blobMerkleRoot: commitments.blob_merkle_root,
+        numChunksets: expectedTotalChunksets(commitments.raw_data_size),
+        expirationMicros: BigInt(Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000n,
+        blobSize: commitments.raw_data_size,
+      });
 
-      console.log("blob_merkle_root type:", typeof commitments.blob_merkle_root);
-      console.log("blob_merkle_root:", commitments.blob_merkle_root);
-      console.log("merkleRootHex:", merkleRootHex);
-      console.log("File size (hex):", `0x${data.length.toString(16)}`);
-      console.log("Chunks (hex):", `0x${commitments.chunkset_commitments.length.toString(16)}`);
-      console.log("Expiration (hex):", `0x${expirationMicros.toString(16)}`);
-
-      console.log("Payload created, waiting for wallet signature...");
+      console.log("Payload created:", JSON.stringify(payload, null, 2));
       console.log("Submitting to Shelbynet via wallet...");
       
       // Submit transaction through wallet
