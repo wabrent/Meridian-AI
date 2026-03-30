@@ -103,6 +103,9 @@ export default function AppDashboard() {
         ]
       };
 
+      console.log("blob_merkle_root type:", typeof commitments.blob_merkle_root);
+      console.log("blob_merkle_root:", commitments.blob_merkle_root);
+      console.log("merkleRootHex:", merkleRootHex);
       console.log("File size (hex):", `0x${data.length.toString(16)}`);
       console.log("Chunks (hex):", `0x${commitments.chunkset_commitments.length.toString(16)}`);
       console.log("Expiration (hex):", `0x${expirationMicros.toString(16)}`);
