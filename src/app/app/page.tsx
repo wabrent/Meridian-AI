@@ -95,13 +95,17 @@ export default function AppDashboard() {
         functionArguments: [
           deployerAddress,
           `0x${blobNameHex}`,
-          data.length,
+          `0x${data.length.toString(16)}`,
           `0x${merkleRootHex}`,
-          expirationMicros.toString(),
-          commitments.chunkset_commitments.length,
-          0
+          `0x${expirationMicros.toString(16)}`,
+          `0x${commitments.chunkset_commitments.length.toString(16)}`,
+          `0x0`
         ]
       };
+
+      console.log("File size (hex):", `0x${data.length.toString(16)}`);
+      console.log("Chunks (hex):", `0x${commitments.chunkset_commitments.length.toString(16)}`);
+      console.log("Expiration (hex):", `0x${expirationMicros.toString(16)}`);
 
       console.log("Payload created, waiting for wallet signature...");
       console.log("Submitting to Shelbynet via wallet...");
