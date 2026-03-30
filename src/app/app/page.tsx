@@ -80,7 +80,8 @@ export default function AppDashboard() {
         blobSize: commitments.raw_data_size,
       });
       
-      console.log("Payload:", payload);
+      console.log("Payload function:", payload.function);
+      console.log("Payload args:", payload.functionArguments);
       
       // Submit registration transaction via wallet
       console.log("Submitting registration transaction...");
