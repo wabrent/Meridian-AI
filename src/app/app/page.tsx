@@ -1,13 +1,12 @@
 "use client";
 
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff } from "lucide-react";
 import Link from "next/link";
-import { Aptos, AptosConfig, Network, AccountAddress } from "@aptos-labs/ts-sdk";
-import { createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets, ShelbyBlobClient, ShelbyClient, ShelbyClientConfig } from "@shelby-protocol/sdk/browser";
 import { useRouter } from "next/navigation";
-import { useNetwork } from "@/components/WalletProvider";
+import { useNetwork, shelbyClient } from "@/components/WalletProvider";
+import { useUploadBlobs } from "@shelby-protocol/react";
 
 type TabType = "upload" | "history" | "certificates";
 
@@ -52,97 +51,48 @@ export default function AppDashboard() {
     }
   };
 
-  const handleUpload = async () => {
-    if (!account || !file) return;
+  const uploadBlobs = useUploadBlobs({
+    client: shelbyClient,
+    onSuccess: () => {
+      console.log("Upload successful!");
+      setStatus("success");
+    },
+    onError: (error) => {
+      console.error("Upload error:", error);
+      setErrorMessage(error.message || "Upload failed");
+      setStatus("error");
+    },
+  });
+
+  const handleUpload = useCallback(async () => {
+    if (!account || !file || !signAndSubmitTransaction) return;
 
     try {
       setStatus("generating");
-      console.log("Starting upload process...");
+      console.log("Starting upload...");
       
-      const provider = await createDefaultErasureCodingProvider();
       const arrayBuffer = await file.arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
+      const blobData = new Uint8Array(arrayBuffer);
       
-      console.log("Generating commitments...");
-      const commitments = await generateCommitments(provider, data);
-      console.log("Commitments generated:", commitments);
+      const expirationMicros = Date.now() * 1000 + 86400000000; // 1 day
       
-      setStatus("signing");
-      console.log("Creating registration transaction...");
+      console.log("Uploading with React SDK...");
       
-      // Create registration payload manually to ensure correct types
-      const deployerAddress = "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
-      // Blob name as hex without 0x prefix (like in explorer)
-      const blobNameHex = Array.from(new TextEncoder().encode(file.name)).map(b => b.toString(16).padStart(2, '0')).join('');
-      const merkleRootHex = commitments.blob_merkle_root;
-      const blobSizeVal = commitments.raw_data_size;
-      const numChunks = expectedTotalChunksets(commitments.raw_data_size);
-      const expiration = (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000;
-      
-      const payload = {
-        function: `${deployerAddress}::blob_metadata::register_blob`,
-        typeArguments: [],
-        functionArguments: [
-          account.address.toString(),
-          blobNameHex,
-          blobSizeVal,
-          merkleRootHex,
-          expiration.toString(),
-          numChunks,
-          "0"
-        ]
-      };
-      
-      console.log("Manual payload args:", payload.functionArguments);
-      console.log("All arg types:", payload.functionArguments.map((a, i) => `${i}: ${typeof a} = ${a}`));
-      
-      // Submit registration transaction via wallet
-      console.log("Submitting registration transaction...");
-      const response = await signAndSubmitTransaction({ data: payload });
-      console.log("Transaction submitted:", response.hash);
-      
-      // Initialize Aptos client to wait for confirmation
-      const aptosConfig = new AptosConfig({ 
-        network: Network.CUSTOM,
-        fullnode: process.env.NEXT_PUBLIC_SHELBY_FULLNODE_URL || "https://api.shelbynet.shelby.xyz/v1",
+      uploadBlobs.mutate({
+        signer: { 
+          account: account.accountAddress, 
+          signAndSubmitTransaction 
+        },
+        blobs: [{ blobName: file.name, blobData }],
+        expirationMicros,
       });
-      const aptos = new Aptos(aptosConfig);
-      
-      console.log("Waiting for transaction confirmation...");
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      console.log("Transaction confirmed!");
-      
-      setStatus("uploading");
-      console.log("Registering blob on Shelby RPC...");
-      
-      // Initialize ShelbyClient for RPC
-      const shelbyClient = new ShelbyClient({
-        network: "shelbynet",
-        apiKey: process.env.NEXT_PUBLIC_SHELBY_API_KEY || "",
-      });
-      
-      // Now upload the blob data
-      const result = await shelbyClient.rpc.putBlob({
-        account: account.address,
-        blobName: file.name,
-        blobData: data,
-      });
-      
-      console.log("Upload successful:", result);
-      
-      setStatus("success");
-      console.log("File uploaded successfully!");
       
     } catch (error: any) {
       console.error(error);
-      if (error?.message?.includes("INSUFFICIENT_BALANCE") || error?.message?.includes("INSUFFICIENT_SHELBY_USD") || error?.name === "StaleMicropaymentErrorResponse") {
-        setErrorMessage("Transaction failed. Reason: Insufficient ShelbyUSD tokens to pay for the upload chunk. Please join the Shelby Discord to request testnet funds to complete this action.");
-      } else {
-        setErrorMessage(error?.message || "An unexpected error occurred connecting to Shelbynet or Aptos.");
-      }
+      setErrorMessage(error?.message || "An unexpected error occurred");
       setStatus("error");
     }
-  };
+  }, [account, file, signAndSubmitTransaction, uploadBlobs]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 font-sans relative overflow-hidden flex">
@@ -293,15 +243,13 @@ export default function AppDashboard() {
                       <div className="mt-6 flex flex-col items-center">
                         <button 
                           onClick={handleUpload} 
-                          disabled={status !== "idle"}
+                          disabled={uploadBlobs.isPending}
                           className="w-full h-12 rounded-xl bg-white text-black font-semibold hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                          {status !== "idle" ? (
+                          {uploadBlobs.isPending ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
-                              {status === "generating" && "Generating Shelby Blob Commitments..."}
-                              {status === "signing" && "Awaiting Wallet Signature..."}
-                              {status === "uploading" && "Uploading Blob Chunks to RPC..."}
+                              Uploading to Shelby...
                             </>
                           ) : (
                             'Sign & Upload to Shelbynet'
