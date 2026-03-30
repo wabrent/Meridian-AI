@@ -93,7 +93,7 @@ export default function AppDashboard() {
         function: `${deployerAddress}::blob_metadata::register_blob` as `${string}::${string}::${string}`,
         typeArguments: [],
         functionArguments: [
-          deployerAddress,
+          account.address,
           `0x${blobNameHex}`,
           `0x${data.length.toString(16)}`,
           `0x${merkleRootHex}`,
