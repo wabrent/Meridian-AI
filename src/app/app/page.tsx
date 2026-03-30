@@ -76,12 +76,15 @@ export default function AppDashboard() {
       setStatus("signing");
       const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
       
+      const expirationMicros = (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000;
+      
       console.log("Creating payload with ShelbyBlobClient...");
       console.log("account:", account.address);
       console.log("blobName:", file.name);
       console.log("blobMerkleRoot:", commitments.blob_merkle_root);
       console.log("raw_data_size:", commitments.raw_data_size);
       console.log("numChunksets:", expectedTotalChunksets(commitments.raw_data_size));
+      console.log("expirationMicros:", expirationMicros);
       
       // Use Shelby SDK's built-in payload creation
       const payload = ShelbyBlobClient.createRegisterBlobPayload({
@@ -89,9 +92,11 @@ export default function AppDashboard() {
         blobName: file.name,
         blobMerkleRoot: commitments.blob_merkle_root,
         numChunksets: expectedTotalChunksets(commitments.raw_data_size),
-        expirationMicros: BigInt(Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000n,
+        expirationMicros: expirationMicros,
         blobSize: commitments.raw_data_size,
       });
+
+      console.log("Payload created, waiting for wallet signature...");
 
       console.log("Payload created:", JSON.stringify(payload, null, 2));
       console.log("Submitting to Shelbynet via wallet...");
