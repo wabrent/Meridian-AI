@@ -87,7 +87,9 @@ export default function AppDashboard() {
         Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
       
       const blobNameHex = bytesToHex(new TextEncoder().encode(file.name));
-      const merkleRootHex = bytesToHex(commitments.blob_merkle_root);
+      const merkleRootHex = typeof commitments.blob_merkle_root === 'string' 
+        ? commitments.blob_merkle_root.replace('0x', '')
+        : bytesToHex(commitments.blob_merkle_root);
       
       const payload = {
         function: `${deployerAddress}::blob_metadata::register_blob` as `${string}::${string}::${string}`,
