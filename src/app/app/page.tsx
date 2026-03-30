@@ -70,26 +70,30 @@ export default function AppDashboard() {
       setStatus("signing");
       console.log("Creating registration transaction...");
       
-      // Create registration payload with explicit number conversion
-      const numChunksetsVal = Number(expectedTotalChunksets(commitments.raw_data_size));
-      const blobSizeVal = Number(commitments.raw_data_size);
-      const expirationMicrosVal = Number((Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000);
+      // Create registration payload manually to ensure correct types
+      const deployerAddress = "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
+      const blobNameHex = "0x" + Array.from(new TextEncoder().encode(file.name)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const merkleRootHex = commitments.blob_merkle_root;
+      const blobSizeVal = commitments.raw_data_size;
+      const numChunks = expectedTotalChunksets(commitments.raw_data_size);
+      const expiration = (Date.now() + 30 * 24 * 60 * 60 * 1000) * 1000;
       
-      console.log("numChunksets:", numChunksetsVal, typeof numChunksetsVal);
-      console.log("blobSize:", blobSizeVal, typeof blobSizeVal);
-      console.log("expirationMicros:", expirationMicrosVal, typeof expirationMicrosVal);
+      const payload = {
+        function: `${deployerAddress}::blob_metadata::register_blob`,
+        typeArguments: [],
+        functionArguments: [
+          account.address.toString(),
+          blobNameHex,
+          blobSizeVal,
+          merkleRootHex,
+          expiration.toString(),
+          numChunks,
+          0
+        ] as any
+      };
       
-      const payload = ShelbyBlobClient.createRegisterBlobPayload({
-        account: account.address,
-        blobName: file.name,
-        blobMerkleRoot: commitments.blob_merkle_root,
-        numChunksets: numChunksetsVal,
-        expirationMicros: expirationMicrosVal,
-        blobSize: blobSizeVal,
-      });
-      
-      console.log("Payload function:", payload.function);
-      console.log("Payload args:", payload.functionArguments);
+      console.log("Manual payload args:", payload.functionArguments);
+      console.log("Arg 6 type:", typeof payload.functionArguments[6], "value:", payload.functionArguments[6]);
       
       // Submit registration transaction via wallet
       console.log("Submitting registration transaction...");
