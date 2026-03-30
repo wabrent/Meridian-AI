@@ -80,7 +80,7 @@ export default function AppDashboard() {
       
       uploadBlobs.mutate({
         signer: { 
-          account: account.accountAddress, 
+          account: account.address, 
           signAndSubmitTransaction 
         },
         blobs: [{ blobName: file.name, blobData }],
