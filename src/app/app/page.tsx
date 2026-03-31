@@ -5,8 +5,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useNetwork, shelbyClient } from "@/components/WalletProvider";
+import { useNetwork } from "@/components/WalletProvider";
 import { useUploadBlobs } from "@shelby-protocol/react";
+import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 
 type TabType = "upload" | "history" | "certificates";
 
@@ -51,8 +52,10 @@ export default function AppDashboard() {
     }
   };
 
+  const { shelbyClient: contextClient } = useNetwork();
+  
   const uploadBlobs = useUploadBlobs({
-    client: shelbyClient,
+    client: contextClient,
     onSuccess: () => {
       console.log("Upload successful!");
       setStatus("success");
