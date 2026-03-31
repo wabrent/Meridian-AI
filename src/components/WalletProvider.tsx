@@ -27,7 +27,7 @@ const queryClient = new QueryClient();
 
 function NetworkChecker({ children }: PropsWithChildren) {
   const [isCorrectNetwork] = useState(true);
-  const [currentNetwork] = useState("TESTNET");
+  const [currentNetwork] = useState("Shelbynet");
 
   const shelbyClient = useMemo(() => {
     const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY || '';
@@ -55,7 +55,7 @@ export function WalletProvider({ children }: PropsWithChildren) {
       <AptosWalletAdapterProvider
         autoConnect={false}
         dappConfig={{
-          network: Network.TESTNET,
+          network: Network.SHELBYNET,
         }}
       >
         <NetworkChecker>
