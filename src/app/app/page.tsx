@@ -29,11 +29,7 @@ export default function AppDashboard() {
   const router = useRouter();
   
   // Mock history data (in real app, this would come from blockchain/indexer)
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([
-    // Demo data
-    { name: "portfolio_v2.pdf", size: 2450000, date: "2024-01-15", txHash: "0x8f...3a" },
-    { name: "contract_signed.docx", size: 125000, date: "2024-01-14", txHash: "0x2c...1f" },
-  ]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const handleConnect = async () => {
     try {
