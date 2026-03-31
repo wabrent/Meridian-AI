@@ -32,19 +32,13 @@ export default function AppDashboard() {
   // Mock history data (in real app, this would come from blockchain/indexer)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  const handleConnect = async (wallet?: any) => {
-    console.log("handleConnect called, wallet:", wallet, "wallets:", wallets);
+  const handleConnect = async () => {
+    console.log("Connecting to Petra wallet...");
     try {
-      if (wallet) {
-        await connect(wallet.name);
-      } else if (wallets && wallets.length > 0) {
-        console.log("Showing wallet selector");
-        setShowWalletSelector(true);
-      } else {
-        console.log("No wallets available");
-      }
+      // Direct connection to Petra
+      await connect("Petra");
     } catch (e) {
-      console.error(e);
+      console.error("Connect error:", e);
     }
   };
 
