@@ -49,7 +49,6 @@ export default function AppDashboard() {
   };
 
   const { shelbyClient: contextClient } = useNetwork();
-  const router = useRouter();
   
   const uploadBlobs = useUploadBlobs({
     client: contextClient,
