@@ -33,11 +33,15 @@ export default function AppDashboard() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const handleConnect = async (wallet?: any) => {
+    console.log("handleConnect called, wallet:", wallet, "wallets:", wallets);
     try {
       if (wallet) {
         await connect(wallet.name);
       } else if (wallets && wallets.length > 0) {
+        console.log("Showing wallet selector");
         setShowWalletSelector(true);
+      } else {
+        console.log("No wallets available");
       }
     } catch (e) {
       console.error(e);
