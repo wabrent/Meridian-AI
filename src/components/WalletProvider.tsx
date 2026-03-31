@@ -5,7 +5,7 @@ import { PetraWallet } from "petra-plugin-wallet-adapter";
 import { PropsWithChildren, createContext, useContext, useState, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
-import { Network, AptosConfig } from "@aptos-labs/ts-sdk";
+import { Network } from "@aptos-labs/ts-sdk";
 
 interface NetworkContextType {
   isCorrectNetwork: boolean;
@@ -54,6 +54,7 @@ export function WalletProvider({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <AptosWalletAdapterProvider
         autoConnect={false}
+        wallets={wallets}
         dappConfig={{
           network: Network.SHELBYNET,
         }}

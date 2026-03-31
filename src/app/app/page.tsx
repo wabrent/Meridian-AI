@@ -21,6 +21,7 @@ interface UploadedFile {
 export default function AppDashboard() {
   const { account, connected, connect, disconnect, wallets, signAndSubmitTransaction } = useWallet();
   const { isCorrectNetwork, currentNetwork } = useNetwork();
+  const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<"idle" | "generating" | "signing" | "uploading" | "success" | "error">("idle");
@@ -31,14 +32,21 @@ export default function AppDashboard() {
   // Mock history data (in real app, this would come from blockchain/indexer)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
-  const handleConnect = async () => {
+  const handleConnect = async (wallet?: any) => {
     try {
-      if (wallets && wallets[0]) {
-        await connect(wallets[0].name);
+      if (wallet) {
+        await connect(wallet.name);
+      } else if (wallets && wallets.length > 0) {
+        setShowWalletSelector(true);
       }
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleWalletSelect = async (wallet: any) => {
+    setShowWalletSelector(false);
+    await connect(wallet.name);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,6 +122,27 @@ export default function AppDashboard() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 font-sans relative overflow-hidden flex">
+      
+      {/* Wallet Selector Modal */}
+      {showWalletSelector && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowWalletSelector(false)}>
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">Select Wallet</h3>
+            <div className="space-y-2">
+              {wallets.map((w: any) => (
+                <button 
+                  key={w.name}
+                  onClick={() => handleWalletSelect(w)}
+                  className="w-full p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-emerald-500/50 transition-colors flex items-center gap-3"
+                >
+                  <span className="text-white font-medium">{w.name}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowWalletSelector(false)} className="mt-4 w-full py-2 text-neutral-400 hover:text-white">Cancel</button>
+          </div>
+        </div>
+      )}
       
       {/* Animated Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
