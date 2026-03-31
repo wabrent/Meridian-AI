@@ -53,16 +53,25 @@ export default function AppDashboard() {
   };
 
   const { shelbyClient: contextClient } = useNetwork();
+  const router = useRouter();
   
   const uploadBlobs = useUploadBlobs({
     client: contextClient,
-    onSuccess: () => {
-      console.log("Upload successful!");
+    onSuccess: (data: any) => {
+      console.log("Upload successful!", data);
       setStatus("success");
+      // @ts-ignore
+      const txHash = data?.hash || data?.txHash || "unknown";
+      setUploadedFiles(prev => [{
+        name: file?.name || "",
+        size: file?.size || 0,
+        date: new Date().toISOString().split('T')[0],
+        txHash: txHash.slice(0, 8) + "..."
+      }, ...prev]);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Upload error:", error);
-      setErrorMessage(error.message || "Upload failed");
+      setErrorMessage(error?.message || "Upload failed");
       setStatus("error");
     },
   });
