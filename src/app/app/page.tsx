@@ -72,7 +72,18 @@ export default function AppDashboard() {
   });
 
   const handleUpload = useCallback(async () => {
-    if (!account || !file || !signAndSubmitTransaction) return;
+    console.log("=== Upload Check ===");
+    console.log("account:", account);
+    console.log("file:", file);
+    console.log("signAndSubmitTransaction:", signAndSubmitTransaction);
+    console.log("account.address:", account?.address);
+    
+    if (!account || !file || !signAndSubmitTransaction) {
+      console.log("Missing requirements - account, file or signAndSubmitTransaction");
+      setErrorMessage("Please connect wallet and select a file first");
+      setStatus("error");
+      return;
+    }
 
     try {
       setStatus("generating");
@@ -82,7 +93,7 @@ export default function AppDashboard() {
       const blobData = new Uint8Array(arrayBuffer);
       
       const expirationMicros = Date.now() * 1000 + 86400000000; // 1 day
-      
+
       console.log("Uploading with React SDK...");
       
       uploadBlobs.mutate({
