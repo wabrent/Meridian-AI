@@ -23,19 +23,65 @@ export default function AppDashboard() {
   const { isCorrectNetwork, currentNetwork } = useNetwork();
   const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("upload");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [status, setStatus] = useState<"idle" | "generating" | "signing" | "uploading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   
-  // Mock history data (in real app, this would come from blockchain/indexer)
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  // Load history from localStorage
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('meridian_history');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  // Save to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && uploadedFiles.length > 0) {
+      localStorage.setItem('meridian_history', JSON.stringify(uploadedFiles));
+    }
+  }, [uploadedFiles]);
+
+  // Toast auto-hide
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const showToast = (message: string, type: "success" | "error" | "info") => {
+    setToast({ message, type });
+  };
+
+  // File validation
+  const validateFile = (file: File): string | null => {
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      return "File size must be less than 50MB";
+    }
+    const allowedTypes = ['image/*', 'application/pdf', 'text/*', 'application/json', 'video/*', 'audio/*'];
+    const isAllowed = allowedTypes.some(type => {
+      if (type.endsWith('/*')) {
+        return file.type.startsWith(type.replace('/*', ''));
+      }
+      return file.type === type;
+    });
+    if (!isAllowed && file.type) {
+      return "File type not supported";
+    }
+    return null;
+  };
 
   const handleConnect = async () => {
     console.log("Connecting to Petra wallet...");
     try {
-      // Direct connection to Petra
       await connect("Petra");
     } catch (e) {
       console.error("Connect error:", e);
@@ -48,10 +94,29 @@ export default function AppDashboard() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setStatus("idle");
+    if (e.target.files && e.target.files.length > 0) {
+      const newFiles = Array.from(e.target.files);
+      const validFiles: File[] = [];
+      
+      for (const file of newFiles) {
+        const error = validateFile(file);
+        if (error) {
+          showToast(error, "error");
+        } else {
+          validFiles.push(file);
+        }
+      }
+      
+      if (validFiles.length > 0) {
+        setFiles(prev => [...prev, ...validFiles]);
+        setStatus("idle");
+        showToast(`${validFiles.length} file(s) selected`, "info");
+      }
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const { shelbyClient: contextClient } = useNetwork();
@@ -61,53 +126,63 @@ export default function AppDashboard() {
     onSuccess: (data: any) => {
       console.log("Upload successful!", data);
       setStatus("success");
+      setUploadProgress(100);
       // @ts-ignore
       const txHash = data?.hash || data?.txHash || "unknown";
+      const fileName = files[0]?.name || "unknown";
       setUploadedFiles(prev => [{
-        name: file?.name || "",
-        size: file?.size || 0,
+        name: fileName,
+        size: files[0]?.size || 0,
         date: new Date().toISOString().split('T')[0],
         txHash: txHash.slice(0, 8) + "..."
       }, ...prev]);
+      showToast("Upload successful!", "success");
+      setFiles([]);
     },
     onError: (error: any) => {
       console.error("Upload error:", error);
       setErrorMessage(error?.message || "Upload failed");
       setStatus("error");
+      setUploadProgress(0);
+      showToast("Upload failed: " + (error?.message || "Unknown error"), "error");
     },
   });
 
   const handleUpload = useCallback(async () => {
     console.log("=== Upload Check ===");
     console.log("account:", account);
-    console.log("file:", file);
+    console.log("files:", files);
     console.log("signAndSubmitTransaction:", signAndSubmitTransaction);
     console.log("account.address:", account?.address);
     
-    if (!account || !file || !signAndSubmitTransaction) {
-      console.log("Missing requirements - account, file or signAndSubmitTransaction");
+    if (!account || files.length === 0 || !signAndSubmitTransaction) {
+      console.log("Missing requirements - account, files or signAndSubmitTransaction");
       setErrorMessage("Please connect wallet and select a file first");
+      showToast("Please connect wallet and select a file", "error");
       setStatus("error");
       return;
     }
 
     try {
       setStatus("generating");
+      setUploadProgress(10);
       console.log("Starting upload...");
       
-      const arrayBuffer = await file.arrayBuffer();
+      const arrayBuffer = await files[0].arrayBuffer();
       const blobData = new Uint8Array(arrayBuffer);
+      setUploadProgress(30);
       
       const expirationMicros = Date.now() * 1000 + 86400000000; // 1 day
 
       console.log("Uploading with React SDK...");
+      setUploadProgress(50);
       
       uploadBlobs.mutate({
         signer: { 
           account: account.address, 
           signAndSubmitTransaction 
         },
-        blobs: [{ blobName: file.name, blobData }],
+        blobs: [{ blobName: files[0].name, blobData }],
         expirationMicros,
       });
       
@@ -115,8 +190,10 @@ export default function AppDashboard() {
       console.error(error);
       setErrorMessage(error?.message || "An unexpected error occurred");
       setStatus("error");
+      setUploadProgress(0);
+      showToast("Error: " + (error?.message || "Unknown error"), "error");
     }
-  }, [account, file, signAndSubmitTransaction, uploadBlobs]);
+  }, [account, files, signAndSubmitTransaction, uploadBlobs]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-neutral-200 font-sans relative overflow-hidden flex">
@@ -141,6 +218,25 @@ export default function AppDashboard() {
           </div>
         </div>
       )}
+      
+      {/* Toast Notifications */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-xl backdrop-blur-sm animate-slide-in ${
+          toast.type === "success" ? "bg-emerald-500/90 text-white" :
+          toast.type === "error" ? "bg-red-500/90 text-white" :
+          "bg-neutral-800/90 text-white"
+        }`}>
+          <p className="text-sm font-medium">{toast.message}</p>
+        </div>
+      )}
+      
+      {/* Theme Toggle */}
+      <button
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        className="fixed bottom-4 right-4 z-40 w-10 h-10 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white hover:bg-neutral-700"
+      >
+        {isDarkMode ? "🌙" : "☀️"}
+      </button>
       
       {/* Animated Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -262,29 +358,52 @@ export default function AppDashboard() {
                   <div className="relative z-10">
                     {/* Dropzone */}
                     <div 
-                      className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${file ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-neutral-800 hover:border-neutral-700 bg-neutral-900/50'}`}
+                      className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${files.length > 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-neutral-800 hover:border-neutral-700 bg-neutral-900/50'}`}
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+                      <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileChange} />
                       
-                      {file ? (
+                      {files.length > 0 ? (
                         <div className="flex flex-col items-center">
                           <CheckCircle2 className="w-10 h-10 text-emerald-500 mb-3" />
-                          <p className="text-white font-medium mb-1">{file.name}</p>
-                          <p className="text-xs text-neutral-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                          <button className="mt-4 text-xs text-neutral-400 hover:text-white underline" onClick={(e) => { e.stopPropagation(); setFile(null); setStatus("idle"); }}>Choose different file</button>
+                          <p className="text-white font-medium mb-1">{files.length} file(s) selected</p>
+                          <div className="max-h-32 overflow-y-auto w-full mt-2">
+                            {files.map((f, i) => (
+                              <div key={i} className="flex items-center justify-between bg-neutral-900 rounded-lg px-3 py-2 mb-1">
+                                <span className="text-sm text-neutral-300 truncate max-w-[200px]">{f.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-neutral-500">{(f.size / 1024 / 1024).toFixed(2)} MB</span>
+                                  <button onClick={(e) => { e.stopPropagation(); removeFile(i); }} className="text-neutral-500 hover:text-red-400">×</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <button className="mt-4 text-xs text-neutral-400 hover:text-white underline" onClick={(e) => { e.stopPropagation(); setFiles([]); setStatus("idle"); }}>Clear all</button>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center cursor-pointer">
                           <UploadCloud className="w-10 h-10 text-neutral-500 mb-3" />
-                          <p className="text-white font-medium mb-1">Click to browse or drag file here</p>
-                          <p className="text-xs text-neutral-500">Images, PDFs, Documents (Max 5GB)</p>
+                          <p className="text-white font-medium mb-1">Click to browse or drag files here</p>
+                          <p className="text-xs text-neutral-500">Images, PDFs, Documents (Max 50MB per file)</p>
                         </div>
                       )}
                     </div>
 
+                    {/* Progress Bar */}
+                    {uploadProgress > 0 && (
+                      <div className="mt-4">
+                        <div className="h-2 bg-neutral-800 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all duration-300"
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-1 text-center">{uploadProgress}%</p>
+                      </div>
+                    )}
+
                     {/* Action Button */}
-                    {file && status !== "success" && (
+                    {files.length > 0 && status !== "success" && (
                       <div className="mt-6 flex flex-col items-center">
                         <button 
                           onClick={handleUpload} 
