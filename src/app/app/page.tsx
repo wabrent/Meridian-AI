@@ -122,6 +122,34 @@ export default function AppDashboard() {
     item.name.toLowerCase().includes(historySearch.toLowerCase())
   );
 
+  // Certificate verification
+  const [verifyInput, setVerifyInput] = useState("");
+  const [verifyResult, setVerifyResult] = useState<{success: boolean; message: string} | null>(null);
+
+  const handleVerify = async () => {
+    if (!verifyInput.trim()) {
+      showToast("Please enter a certificate URL or Blob ID", "error");
+      return;
+    }
+
+    setVerifyResult(null);
+    showToast("Verifying...", "info");
+
+    try {
+      // Parse input - could be URL or blob ID
+      let url = verifyInput;
+      if (!url.startsWith('/') && !url.startsWith('0x')) {
+        url = '/' + url;
+      }
+
+      // Navigate to verify page
+      router.push(url);
+    } catch (error) {
+      setVerifyResult({success: false, message: "Invalid certificate URL or ID"});
+      showToast("Verification failed", "error");
+    }
+  };
+
   // File validation
   const validateFile = (file: File): string | null => {
     const maxSize = 50 * 1024 * 1024; // 50MB
@@ -612,13 +640,22 @@ export default function AppDashboard() {
                     <input 
                       type="text" 
                       placeholder="0x123.../my-file.pdf" 
+                      value={verifyInput}
+                      onChange={(e) => setVerifyInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleVerify()}
                       className="flex-1 bg-[#0f0f0f] border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50"
                     />
-                    <button className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-neutral-200 transition-colors">
+                    <button onClick={handleVerify} className="px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-neutral-200 transition-colors">
                       Verify
                     </button>
                   </div>
                 </div>
+                
+                {verifyResult && (
+                  <div className={`mt-4 p-4 rounded-lg ${verifyResult.success ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                    {verifyResult.message}
+                  </div>
+                )}
                 
                 <div className="text-xs text-neutral-500">
                   <p>Example valid URL: <code className="text-neutral-400 bg-neutral-900 px-1 py-0.5 rounded">/verify/0x123.../document.pdf</code></p>
