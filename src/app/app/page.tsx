@@ -28,7 +28,21 @@ export default function AppDashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('meridian_theme');
+      return saved !== 'light';
+    }
+    return true;
+  });
+
+  // Apply theme to document
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('light', !isDarkMode);
+      localStorage.setItem('meridian_theme', isDarkMode ? 'dark' : 'light');
+    }
+  }, [isDarkMode]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   
@@ -59,6 +73,54 @@ export default function AppDashboard() {
   const showToast = (message: string, type: "success" | "error" | "info") => {
     setToast({ message, type });
   };
+
+  // Drag & Drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const newFiles = Array.from(e.dataTransfer.files);
+      const validFiles: File[] = [];
+      for (const file of newFiles) {
+        const error = validateFile(file);
+        if (error) {
+          showToast(error, "error");
+        } else {
+          validFiles.push(file);
+        }
+      }
+      if (validFiles.length > 0) {
+        setFiles(prev => [...prev, ...validFiles]);
+        setStatus("idle");
+        showToast(`${validFiles.length} file(s) added`, "info");
+      }
+    }
+  };
+
+  // Copy wallet address
+  const copyAddress = () => {
+    if (account?.address) {
+      navigator.clipboard.writeText(account.address.toString());
+      showToast("Address copied!", "success");
+    }
+  };
+
+  // Delete from history
+  const deleteFromHistory = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    showToast("Deleted from history", "info");
+  };
+
+  // Search in history
+  const [historySearch, setHistorySearch] = useState("");
+  const filteredHistory = uploadedFiles.filter(item => 
+    item.name.toLowerCase().includes(historySearch.toLowerCase())
+  );
 
   // File validation
   const validateFile = (file: File): string | null => {
@@ -196,7 +258,11 @@ export default function AppDashboard() {
   }, [account, files, signAndSubmitTransaction, uploadBlobs]);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-neutral-200 font-sans relative overflow-hidden flex">
+    <div className={`min-h-screen font-sans relative overflow-hidden flex transition-colors duration-300 ${
+      isDarkMode 
+        ? "bg-[#050505] text-neutral-200" 
+        : "bg-gray-50 text-gray-900"
+    }`}>
       
       {/* Wallet Selector Modal */}
       {showWalletSelector && (
@@ -299,9 +365,16 @@ export default function AppDashboard() {
                 {account?.address.toString().slice(2, 4)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">
-                  {account?.address.toString().slice(0, 8)}...{account?.address.toString().slice(-4)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-white truncate">
+                    {account?.address.toString().slice(0, 8)}...{account?.address.toString().slice(-4)}
+                  </p>
+                  <button onClick={copyAddress} className="text-neutral-500 hover:text-emerald-400" title="Copy address">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
                 <p className="text-xs text-emerald-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   Shelbynet
@@ -356,10 +429,12 @@ export default function AppDashboard() {
                   </div>
                 ) : (
                   <div className="relative z-10">
-                    {/* Dropzone */}
+                    {/* Dropzone with Drag & Drop */}
                     <div 
                       className={`border-2 border-dashed rounded-xl p-10 text-center transition-colors ${files.length > 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-neutral-800 hover:border-neutral-700 bg-neutral-900/50'}`}
                       onClick={() => fileInputRef.current?.click()}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
                     >
                       <input type="file" ref={fileInputRef} className="hidden" multiple onChange={handleFileChange} />
                       
@@ -444,6 +519,19 @@ export default function AppDashboard() {
               <header className="mb-10">
                 <h1 className="text-3xl font-bold text-white mb-3">Upload History</h1>
                 <p className="text-neutral-400 text-sm">Your recently archived assets on the Shelby network.</p>
+                
+                {/* Search */}
+                {uploadedFiles.length > 0 && (
+                  <div className="mt-4">
+                    <input 
+                      type="text" 
+                      placeholder="Search files..."
+                      value={historySearch}
+                      onChange={(e) => setHistorySearch(e.target.value)}
+                      className="w-full sm:w-auto px-4 py-2 bg-[#0f0f0f] border border-neutral-800 rounded-lg text-white placeholder-neutral-600 focus:outline-none focus:border-emerald-500/50"
+                    />
+                  </div>
+                )}
               </header>
 
               {!connected ? (
