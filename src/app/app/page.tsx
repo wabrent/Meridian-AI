@@ -2,7 +2,7 @@
 
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff, Trash2, QrCode } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/components/WalletProvider";
@@ -542,11 +542,17 @@ export default function AppDashboard() {
               ) : (
                 <div className="space-y-4">
                   {uploadedFiles.map((item, index) => (
-                    <div key={index} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-5 flex items-center justify-between hover:border-white/10 transition-colors">
+                    <div key={index} className="bg-[#0a0a0a] border border-white/5 rounded-xl p-5 flex items-center justify-between hover-lift transition-all duration-300">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-neutral-400" />
-                        </div>
+                        {item.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? (
+                          <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden">
+                            <img src={`/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-neutral-400" />
+                          </div>
+                        )}
                         <div>
                           <h3 className="text-white font-medium">{item.name}</h3>
                           <div className="flex items-center gap-3 mt-1">
@@ -556,13 +562,26 @@ export default function AppDashboard() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
                         <div className="hidden sm:block text-right">
                           <p className="text-xs text-neutral-500 font-mono">Tx: {item.txHash}</p>
+                          {item.fullTxHash && (
+                            <a 
+                              href={`https://explorer.aptoslabs.com/txn/${item.fullTxHash}?network=shelbynet`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-emerald-500 hover:underline flex items-center gap-1 mt-1"
+                            >
+                              <Link className="w-3 h-3" /> Explorer
+                            </a>
+                          )}
                         </div>
-                        <a href={`/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-white">
-                          <ExternalLink className="w-4 h-4" />
+                        <a href={`/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-white" title="View Certificate">
+                          <QrCode className="w-4 h-4" />
                         </a>
+                        <button onClick={() => deleteFromHistory(index)} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-red-400" title="Delete">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   ))}
