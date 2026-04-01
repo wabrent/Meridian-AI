@@ -122,9 +122,10 @@ export default function AppDashboard() {
     item.name.toLowerCase().includes(historySearch.toLowerCase())
   );
 
-  // Certificate verification
   const [verifyInput, setVerifyInput] = useState("");
   const [verifyResult, setVerifyResult] = useState<{success: boolean; message: string} | null>(null);
+  const [showQR, setShowQR] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
 
   const handleVerify = async () => {
     if (!verifyInput.trim()) {
@@ -136,18 +137,24 @@ export default function AppDashboard() {
     showToast("Verifying...", "info");
 
     try {
-      // Parse input - could be URL or blob ID
       let url = verifyInput;
       if (!url.startsWith('/') && !url.startsWith('0x')) {
         url = '/' + url;
       }
-
-      // Navigate to verify page
       router.push(url);
     } catch (error) {
       setVerifyResult({success: false, message: "Invalid certificate URL or ID"});
       showToast("Verification failed", "error");
     }
+  };
+
+  // Generate QR code URL for certificate
+  const generateQRCode = (item: UploadedFile) => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const certUrl = `${baseUrl}/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`;
+    // Use a simple QR code API
+    setQrUrl(certUrl);
+    setShowQR(true);
   };
 
   // File validation
@@ -214,19 +221,30 @@ export default function AppDashboard() {
   const uploadBlobs = useUploadBlobs({
     client: contextClient,
     onSuccess: (data: any) => {
-      console.log("Upload successful!", data);
+      console.log("Upload successful! Full response:", JSON.stringify(data, null, 2));
       setStatus("success");
       setUploadProgress(100);
-      // @ts-ignore
-      const txHash = data?.hash || data?.txHash || "unknown";
+      
+      // Try to get txHash from various response formats
+      let txHash = "unknown";
+      if (data?.hash) txHash = data.hash;
+      else if (data?.txHash) txHash = data.txHash;
+      else if (data?.data?.hash) txHash = data.data.hash;
+      else if (data?.data?.txHash) txHash = data.data.txHash;
+      else if (typeof data === 'string') txHash = data;
+      
       const fileName = files[0]?.name || "unknown";
+      const fullTxHash = txHash !== "unknown" ? txHash : "";
+      const displayTxHash = fullTxHash ? (fullTxHash.slice(0, 8) + "...") : "Pending";
+      
       setUploadedFiles(prev => [{
         name: fileName,
         size: files[0]?.size || 0,
         date: new Date().toISOString().split('T')[0],
-        txHash: txHash.slice(0, 8) + "..."
+        txHash: displayTxHash,
+        fullTxHash: fullTxHash
       }, ...prev]);
-      showToast("Upload successful!", "success");
+      showToast("Upload successful! Hash: " + displayTxHash, "success");
       setFiles([]);
     },
     onError: (error: any) => {
@@ -321,6 +339,26 @@ export default function AppDashboard() {
           "bg-neutral-800/90 text-white"
         }`}>
           <p className="text-sm font-medium">{toast.message}</p>
+        </div>
+      )}
+      
+      {/* QR Code Modal */}
+      {showQR && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowQR(false)}>
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 w-full max-w-sm text-center" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">Certificate QR Code</h3>
+            <div className="bg-white p-4 rounded-xl mb-4">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}`}
+                alt="QR Code"
+                className="w-full h-auto"
+              />
+            </div>
+            <p className="text-xs text-neutral-500 mb-4 break-all">{qrUrl.slice(0, 50)}...</p>
+            <button onClick={() => setShowQR(false)} className="mt-4 w-full py-2 bg-white text-black font-semibold rounded-lg hover:bg-neutral-200">
+              Close
+            </button>
+          </div>
         </div>
       )}
       
@@ -604,9 +642,9 @@ export default function AppDashboard() {
                             </a>
                           )}
                         </div>
-                        <a href={`/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-white" title="View Certificate">
+                        <button onClick={() => generateQRCode(item)} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-white" title="Generate QR Code">
                           <QrCode className="w-4 h-4" />
-                        </a>
+                        </button>
                         <button onClick={() => deleteFromHistory(index)} className="p-2 rounded-lg hover:bg-white/5 transition-colors text-neutral-400 hover:text-red-400" title="Delete">
                           <Trash2 className="w-4 h-4" />
                         </button>
