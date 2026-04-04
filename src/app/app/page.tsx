@@ -5,7 +5,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff, Trash2, QrCode } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useNetwork } from "@/components/WalletProvider";
+import { useNetwork, networkLabels } from "@/components/WalletProvider";
+import type { NetworkName } from "@/components/WalletProvider";
 import { useUploadBlobs } from "@shelby-protocol/react";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 
@@ -20,7 +21,7 @@ interface UploadedFile {
 
 export default function AppDashboard() {
   const { account, connected, connect, disconnect, wallets, signAndSubmitTransaction } = useWallet();
-  const { isCorrectNetwork, currentNetwork } = useNetwork();
+  const { isCorrectNetwork, selectedNetwork, setSelectedNetwork } = useNetwork();
   const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const [files, setFiles] = useState<File[]>([]);
@@ -412,6 +413,20 @@ export default function AppDashboard() {
           </button>
           
           <div className="pt-4 mt-4 border-t border-white/5">
+            {/* Network Selector */}
+            <div className="px-4 py-3">
+              <label className="text-xs text-neutral-500 mb-2 block">Network</label>
+              <select 
+                value={selectedNetwork}
+                onChange={(e) => setSelectedNetwork(e.target.value as NetworkName)}
+                className="w-full bg-[#0a0a0a] border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500/50"
+              >
+                <option value="shelbynet">Shelbynet</option>
+                <option value="testnet">Aptos Testnet</option>
+                <option value="mainnet">Aptos Mainnet</option>
+              </select>
+            </div>
+            
             <a href="https://docs.shelby.xyz" target="_blank" rel="noopener noreferrer" className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-neutral-500 hover:text-white hover:bg-white/5 transition-colors">
               <span>Documentation</span>
               <ExternalLink className="w-3 h-3" />
@@ -443,7 +458,7 @@ export default function AppDashboard() {
                 </div>
                 <p className="text-xs text-emerald-400 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Shelbynet
+                  {networkLabels[selectedNetwork]}
                 </p>
               </div>
               <button onClick={disconnect} className="p-2 text-neutral-500 hover:text-white transition-colors">
@@ -557,7 +572,7 @@ export default function AppDashboard() {
                               Uploading to Shelby...
                             </>
                           ) : (
-                            'Sign & Upload to Shelbynet'
+                            '                          Sign & Upload to {networkLabels[selectedNetwork]}'
                           )}
                         </button>
                       </div>
