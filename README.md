@@ -11,7 +11,7 @@ A decentralized application built on the **Shelby Protocol** that turns blockcha
 [![Shelby Protocol](https://img.shields.io/badge/Shelby-Protocol-10b981)](https://shelby.xyz)
 [![Aptos](https://img.shields.io/badge/Aptos-Blockchain-2dd4bf)](https://aptoslabs.org)
 
-[Live Demo](https://meridian-ai.onrender.com) · [Report Bug](https://github.com/wabrent/Meridian-AI/issues) · [Request Feature](https://github.com/wabrent/Meridian-AI/issues)
+[Live Demo](https://meridian-shelby.xyz) · [Report Bug](https://github.com/wabrent/Meridian-AI/issues) · [Request Feature](https://github.com/wabrent/Meridian-AI/issues)
 
 <img src="public/bg.jpg" alt="Meridian Banner" width="100%" style="border-radius: 12px; margin: 20px 0;">
 
@@ -24,7 +24,7 @@ A decentralized application built on the **Shelby Protocol** that turns blockcha
 **Meridian** is a Web3 application that leverages the Shelby Protocol's high-performance decentralized storage infrastructure to create immutable, on-chain proof of authorship for any digital asset.
 
 When you upload a file through Meridian:
-1. Your file is **erasure-coded** and distributed across Shelby's private fiber network
+1. Your file is **erasure-coded** and distributed across Shelby's storage network
 2. A **cryptographic commitment** is generated and anchored on the Aptos blockchain
 3. You receive a **permanent verification URL** that anyone can use to verify your ownership
 
@@ -32,11 +32,11 @@ When you upload a file through Meridian:
 
 | Traditional Storage | Meridian + Shelby |
 |:------------------:|:-----------------:|
-| Centralized servers | Decentralized fiber network |
+| Centralized servers | Decentralized storage network |
 | No ownership proof | On-chain certificates |
 | Can be modified | Immutable & tamper-proof |
 | Single point of failure | Distributed redundancy |
-| Pay for storage | Paid reads incentive model |
+| Pay for storage | Permanent blob storage |
 
 ---
 
@@ -44,18 +44,23 @@ When you upload a file through Meridian:
 
 ### Core Capabilities
 
-- **Wallet Integration** - Connect with Petra, OKX, or any Aptos-compatible wallet
+- **Wallet Integration** - Connect with Petra or any Aptos-compatible wallet
 - **Drag & Drop Upload** - Intuitive file upload with real-time progress
 - **On-Chain Certificates** - Immutable proof anchored to Aptos blockchain
 - **Public Verification** - Share verification URLs for instant ownership proof
 - **Upload History** - Track all your archived assets in one place
+- **Wallet Selector** - Choose your preferred wallet from a modal
+- **QR Code Generation** - Share certificates via QR codes
+- **Dark/Light Theme** - Toggle between light and dark mode
+- **Multi-File Support** - Upload multiple files at once (up to 50MB each)
+- **Explorer Links** - View transactions directly on Shelby Explorer
 
 ### Technical Highlights
 
 - **Erasure Coding** - Advanced data redundancy without excessive storage overhead
-- **High-Bandwidth** - Shelby's private fiber network enables fast uploads/downloads
+- **High-Bandwidth** - Shelby's network enables fast uploads/downloads
 - **BFT Consensus** - Byzantine Fault Tolerance via Aptos blockchain
-- **Paid Reads** - Economic model incentivizing high-quality storage providers
+- **Permanent Storage** - Files stored permanently on Shelbynet
 
 ---
 
@@ -72,7 +77,7 @@ When you upload a file through Meridian:
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Shelby Protocol                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  Erasure Coding │  Fiber Network  │  Storage Providers           │
+│  Erasure Coding │  Storage Network  │  Storage Providers         │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -89,9 +94,10 @@ When you upload a file through Meridian:
 
 ### Prerequisites
 
-- **Node.js** 18+ 
+- **Node.js** 18+
 - **npm** or **yarn**
 - **Petra Wallet** browser extension ([Install here](https://petra.app))
+- **Shelbynet API key** from [geomi.dev](https://geomi.dev)
 
 ### Installation
 
@@ -110,13 +116,11 @@ When you upload a file through Meridian:
    ```bash
    cp .env.example .env.local
    ```
-   
+
    Update `.env.local` with your values:
    ```env
-   SHELBY_API_KEY=your_api_key_here
-   NEXT_PUBLIC_CONTRACT_ADDRESS=0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a
-   NEXT_PUBLIC_SHELBY_RPC_URL=https://api.shelbynet.shelby.xyz/shelby
-   NEXT_PUBLIC_SHELBY_FULLNODE_URL=https://api.shelbynet.shelby.xyz/v1
+   NEXT_PUBLIC_SHELBY_API_KEY=your_shelbynet_api_key_here
+   NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS=0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a
    ```
 
 4. **Run the development server**
@@ -137,22 +141,23 @@ When you upload a file through Meridian:
 
 1. Click **"Launch App"** in the navigation
 2. Click **"Connect Wallet"** button
-3. Select your wallet (Petra recommended)
+3. Select your wallet (Petra recommended) from the modal
 4. Approve the connection request
 
 ### Uploading Files
 
 1. Navigate to the **Upload Asset** tab
 2. Drag and drop your file or click to browse
-3. Click **"Upload to Shelbynet"**
-4. Approve the transaction in your wallet
-5. Receive your permanent verification certificate
+3. Click **"Sign & Upload to Shelbynet"**
+4. Approve the registration transaction in your wallet
+5. Wait for the data upload to complete
+6. Receive your permanent verification certificate
 
 ### Verifying Ownership
 
 1. Share your verification URL:
    ```
-   https://meridian-ai.onrender.com/verify/{address}/{filename}
+   https://meridian-shelby.xyz/verify/{address}/{filename}
    ```
 2. Anyone can access this URL to verify:
    - File authenticity via cryptographic hash
@@ -181,10 +186,10 @@ Meridian-AI/
 │   │           └── [filename]/
 │   │               └── page.tsx  # Certificate verification
 │   └── components/
-│       └── WalletProvider.tsx    # Aptos wallet context
-├── render.yaml            # Render deployment config
+│       ├── WalletProvider.tsx    # Aptos wallet context + Shelby client
+│       └── ErrorBoundary.tsx     # Error handling
+├── .npmrc                 # legacy-peer-deps config
 ├── next.config.ts         # Next.js configuration
-├── tailwind.config.ts     # Tailwind CSS config
 └── package.json           # Dependencies
 ```
 
@@ -196,35 +201,48 @@ Meridian-AI/
 
 ```typescript
 import { 
-  ShelbyBlobClient, 
-  ShelbyRPCClient,
-  createDefaultErasureCodingProvider 
+  createDefaultErasureCodingProvider, 
+  generateCommitments,
+  expectedTotalChunksets 
 } from '@shelby-protocol/sdk/browser';
-import { Network } from '@aptos-labs/ts-sdk';
+import { Network, AptosConfig } from '@aptos-labs/ts-sdk';
 
-// Initialize RPC Client
-const rpcClient = new ShelbyRPCClient({
-  network: Network.SHELBYNET,
-  apiKey: process.env.SHELBY_API_KEY,
-  rpc: { baseUrl: process.env.NEXT_PUBLIC_SHELBY_RPC_URL }
-});
+// Generate commitments for a file
+const provider = await createDefaultErasureCodingProvider();
+const commitments = await generateCommitments(provider, fileData);
 
-// Create register payload
-const payload = await ShelbyBlobClient.createRegisterBlobPayload({
-  file,
-  erasureCodingProvider,
-  contractAddress,
-});
+// Register blob on-chain via wallet (10-arg payload)
+const payload = {
+  function: `${deployerAddress}::blob_metadata::register_blob`,
+  functionArguments: [
+    fileName,
+    "shelbynet-1",
+    null,
+    expirationMicros,
+    merkleRootBytes,
+    numChunksets,
+    fileSize,
+    0, 0, 0
+  ]
+};
 
-// Submit via wallet
-const tx = await window.aptos.signAndSubmitTransaction({ payload });
+// Submit via wallet, wait for confirmation, extract UID
+// Then upload data via putBlobChunksets
 ```
 
 ---
 
 ## Deployment
 
-### Render (Recommended)
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Connect repository to [Vercel](https://vercel.com)
+3. Vercel auto-detects Next.js
+4. Add environment variables in Vercel dashboard
+5. Deploy!
+
+### Render
 
 1. Push your code to GitHub
 2. Connect repository to [Render](https://render.com)
@@ -234,23 +252,14 @@ const tx = await window.aptos.signAndSubmitTransaction({ payload });
 4. Add environment variables in Render dashboard
 5. Deploy!
 
-### Docker
-
-```bash
-docker build -t meridian-ai .
-docker run -p 3000:3000 meridian-ai
-```
-
 ---
 
 ## Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `SHELBY_API_KEY` | Shelby Protocol API key | Yes |
-| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Shelby smart contract address | Yes |
-| `NEXT_PUBLIC_SHELBY_RPC_URL` | Shelbynet RPC endpoint | Yes |
-| `NEXT_PUBLIC_SHELBY_FULLNODE_URL` | Shelbynet fullnode endpoint | Yes |
+| `NEXT_PUBLIC_SHELBY_API_KEY` | Shelbynet API key (from geomi.dev) | Yes |
+| `NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS` | Shelby smart contract address | Yes |
 
 ---
 
@@ -272,12 +281,15 @@ Contributions are what make the open source community such an amazing place to l
 - [x] File upload to Shelbynet
 - [x] Certificate verification page
 - [x] Upload history tracking
-- [ ] Multi-wallet support (OKX, Pontem)
-- [ ] Batch file uploads
+- [x] Wallet selector modal
+- [x] QR code generation
+- [x] Dark/light theme
+- [x] Multi-file upload
+- [x] Shelby Explorer links
 - [ ] File encryption before upload
 - [ ] NFT certificate minting
+- [ ] Batch file downloads
 - [ ] Mobile responsive improvements
-- [ ] API documentation (Swagger)
 
 ---
 
@@ -291,9 +303,10 @@ Contributions are what make the open source community such an amazing place to l
 | **Blockchain** | Aptos |
 | **Storage** | Shelby Protocol |
 | **Wallet** | Petra (Aptos Wallet Adapter) |
+| **SDK** | @shelby-protocol/sdk 0.6.0 |
 | **Icons** | Lucide React |
 | **Animation** | CSS Keyframes |
-| **Deployment** | Render |
+| **Deployment** | Vercel |
 
 ---
 
@@ -309,6 +322,7 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 - GitHub: [@wabrent](https://github.com/wabrent)
 - Project Link: [https://github.com/wabrent/Meridian-AI](https://github.com/wabrent/Meridian-AI)
+- Live Demo: [https://meridian-shelby.xyz](https://meridian-shelby.xyz)
 
 ---
 
