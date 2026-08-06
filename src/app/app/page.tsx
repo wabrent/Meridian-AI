@@ -178,11 +178,16 @@ export default function AppDashboard() {
   };
 
   const handleConnect = async () => {
-    console.log("Connecting to Petra wallet...");
-    try {
-      await connect("Petra");
-    } catch (e) {
-      console.error("Connect error:", e);
+    console.log("Opening wallet selector...");
+    console.log("Available wallets:", wallets);
+    if (wallets && wallets.length > 0) {
+      setShowWalletSelector(true);
+    } else {
+      try {
+        await connect("Petra");
+      } catch (e) {
+        console.error("Connect error:", e);
+      }
     }
   };
 
