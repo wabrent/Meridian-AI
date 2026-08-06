@@ -278,9 +278,9 @@ export default function AppDashboard() {
         typeArguments: [],
         functionArguments: [
           account.address.toString(),
-          blobNameHex,
+          `0x${blobNameHex}`,
           commitments.raw_data_size,
-          merkleRootHex,
+          `0x${merkleRootHex}`,
           expirationMicros.toString(),
           numChunksets,
           "0"
