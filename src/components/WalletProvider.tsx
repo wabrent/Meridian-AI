@@ -2,7 +2,6 @@
 
 import { AptosWalletAdapterProvider, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { PropsWithChildren, createContext, useContext, useState, useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 import { Network as AptosNetwork, AptosConfig } from "@aptos-labs/ts-sdk";
 
@@ -23,8 +22,6 @@ export const NetworkContext = createContext<NetworkContextType>({
 });
 
 export const useNetwork = () => useContext(NetworkContext);
-
-const queryClient = new QueryClient();
 
 const networkConfig: Record<NetworkName, { aptNetwork: AptosNetwork; fullnode: string; indexer: string; rpc: string }> = {
   shelbynet: {
@@ -79,11 +76,9 @@ export function WalletProvider({ children }: PropsWithChildren) {
 
   return (
     <AptosWalletAdapterProvider autoConnect={false}>
-      <QueryClientProvider client={queryClient}>
-        <NetworkChecker>
-          {children}
-        </NetworkChecker>
-      </QueryClientProvider>
+      <NetworkChecker>
+        {children}
+      </NetworkChecker>
     </AptosWalletAdapterProvider>
   );
 }
