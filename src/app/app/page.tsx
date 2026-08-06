@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useNetwork, networkLabels } from "@/components/WalletProvider";
 import type { NetworkName } from "@/components/WalletProvider";
-import { useUploadBlobs } from "@shelby-protocol/react";
 import { ShelbyClient, ShelbyBlobClient, createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets } from "@shelby-protocol/sdk/browser";
 import { Aptos, AptosConfig, Network, AccountAddress } from "@aptos-labs/ts-sdk";
 
@@ -27,6 +26,15 @@ interface UploadedFile {
   txHash: string;
 }
 
+// Safe address getter - avoids crashes when account/address undefined
+const safeAddress = (account: any): string => {
+  try {
+    return account?.address?.toString() || "";
+  } catch {
+    return "";
+  }
+};
+
 export default function AppDashboard() {
   const { account, connected, connect, disconnect, wallets, signAndSubmitTransaction } = useWallet();
   const { isCorrectNetwork, selectedNetwork, setSelectedNetwork } = useNetwork();
@@ -37,6 +45,7 @@ export default function AppDashboard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const accountAddress = safeAddress(account);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('meridian_theme');
@@ -113,8 +122,8 @@ export default function AppDashboard() {
 
   // Copy wallet address
   const copyAddress = () => {
-    if (account?.address) {
-      navigator.clipboard.writeText(account.address.toString());
+    if (accountAddress) {
+      navigator.clipboard.writeText(accountAddress);
       showToast("Address copied!", "success");
     }
   };
@@ -160,7 +169,7 @@ export default function AppDashboard() {
   // Generate QR code URL for certificate
   const generateQRCode = (item: UploadedFile) => {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    const certUrl = `${baseUrl}/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`;
+    const certUrl = `${baseUrl}/verify/${accountAddress}/${encodeURIComponent(item.name)}`;
     // Use a simple QR code API
     setQrUrl(certUrl);
     setShowQR(true);
@@ -237,9 +246,9 @@ export default function AppDashboard() {
     console.log("account:", account);
     console.log("files:", files);
     console.log("signAndSubmitTransaction:", signAndSubmitTransaction);
-    console.log("account.address:", account?.address);
+    console.log("account.address:", accountAddress);
     
-    if (!account || files.length === 0 || !signAndSubmitTransaction) {
+    if (!account || files.length === 0 || !signAndSubmitTransaction || !accountAddress) {
       console.log("Missing requirements - account, files or signAndSubmitTransaction");
       setErrorMessage("Please connect wallet and select a file first");
       showToast("Please connect wallet and select a file", "error");
@@ -337,7 +346,7 @@ export default function AppDashboard() {
       
       // Upload data directly via RPC using new chunkset API
       await contextClient.rpc.putBlobChunksets({
-        accountAddress: account.address.toString(),
+        accountAddress: accountAddress,
         uid: uidEntries[0].uid,
         blobData: data,
         commitments,
@@ -511,12 +520,12 @@ export default function AppDashboard() {
           <div className="p-4 border-t border-white/5 bg-[#0f0f0f]">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white">
-                {account?.address.toString().slice(2, 4)}
+                {accountAddress.slice(2, 4)}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-white truncate">
-                    {account?.address.toString().slice(0, 8)}...{account?.address.toString().slice(-4)}
+                    {accountAddress.slice(0, 8)}...{accountAddress.slice(-4)}
                   </p>
                   <button onClick={copyAddress} className="text-neutral-500 hover:text-emerald-400" title="Copy address">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -548,7 +557,7 @@ export default function AppDashboard() {
           {!connected ? (
             <button onClick={handleConnect} className="text-xs text-emerald-400 font-medium">Connect</button>
           ) : (
-            <button onClick={disconnect} className="text-xs text-neutral-400">{account?.address.toString().slice(0,6)}...</button>
+            <button onClick={disconnect} className="text-xs text-neutral-400">{accountAddress.slice(0,6)}...</button>
           )}
         </div>
 
@@ -697,7 +706,7 @@ export default function AppDashboard() {
                       <div className="flex items-center gap-4">
                         {item.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i) ? (
                           <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden">
-                            <img src={`/verify/${account?.address.toString()}/${encodeURIComponent(item.name)}`} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                            <img src={`/verify/${accountAddress}/${encodeURIComponent(item.name)}`} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                           </div>
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center">
