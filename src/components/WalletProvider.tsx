@@ -5,7 +5,7 @@ import { PetraWallet } from "petra-plugin-wallet-adapter";
 import { PropsWithChildren, createContext, useContext, useState, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
-import { Network as AptosNetwork } from "@aptos-labs/ts-sdk";
+import { Network as AptosNetwork, AptosConfig } from "@aptos-labs/ts-sdk";
 
 export type NetworkName = "shelbynet" | "testnet" | "mainnet";
 
@@ -29,18 +29,24 @@ const wallets = [new PetraWallet()];
 
 const queryClient = new QueryClient();
 
-const networkConfig: Record<NetworkName, { aptNetwork: AptosNetwork; rpcUrl: string }> = {
+const networkConfig: Record<NetworkName, { aptNetwork: AptosNetwork; fullnode: string; indexer: string; rpc: string }> = {
   shelbynet: {
     aptNetwork: AptosNetwork.SHELBYNET,
-    rpcUrl: "https://api.shelbynet.shelby.xyz/v1"
+    fullnode: "https://api.shelbynet.shelby.xyz/v1",
+    indexer: "https://api.shelbynet.aptoslabs.com/nocode/v1/public/cmforrguw0042s601fn71f9l2/v1/graphql",
+    rpc: "https://api.shelbynet.shelby.xyz/shelby"
   },
   testnet: {
     aptNetwork: AptosNetwork.TESTNET,
-    rpcUrl: "https://api.testnet.aptoslabs.com/v1"
+    fullnode: "https://api.testnet.aptoslabs.com/v1",
+    indexer: "https://api.testnet.aptoslabs.com/nocode/v1/public/cmlfqs5wt00qrs601zt5s4kfj/v1/graphql",
+    rpc: "https://api.testnet.shelby.xyz/shelby"
   },
   mainnet: {
     aptNetwork: AptosNetwork.MAINNET,
-    rpcUrl: "https://api.mainnet.aptoslabs.com/v1"
+    fullnode: "https://api.mainnet.aptoslabs.com/v1",
+    indexer: "",
+    rpc: ""
   }
 };
 
@@ -49,12 +55,21 @@ function NetworkChecker({ children }: PropsWithChildren) {
 
   const shelbyClient = useMemo(() => {
     const apiKey = process.env.NEXT_PUBLIC_SHELBY_API_KEY || '';
+    const config = networkConfig[selectedNetwork];
     
+    const aptos = new AptosConfig({
+      network: config.aptNetwork,
+      fullnode: config.fullnode,
+      indexer: config.indexer,
+      clientConfig: apiKey ? { API_KEY: apiKey } : undefined,
+    });
+
     const shelby = new ShelbyClient({ 
-      network: selectedNetwork,
+      network: config.aptNetwork as any,
       apiKey: apiKey,
-      rpc: { apiKey: apiKey },
-      indexer: { apiKey: apiKey },
+      aptos: aptos,
+      indexer: { apiKey: apiKey, baseUrl: config.indexer },
+      rpc: { apiKey: apiKey, baseUrl: config.rpc }
     });
     
     return shelby;
