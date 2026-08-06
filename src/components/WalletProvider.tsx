@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 import { Network as AptosNetwork, AptosConfig } from "@aptos-labs/ts-sdk";
 
-export type NetworkName = "shelbynet" | "testnet" | "mainnet";
+export type NetworkName = "shelbynet";
 
 interface NetworkContextType {
   selectedNetwork: NetworkName;
@@ -35,18 +35,6 @@ const networkConfig: Record<NetworkName, { aptNetwork: AptosNetwork; fullnode: s
     fullnode: "https://api.shelbynet.shelby.xyz/v1",
     indexer: "https://api.shelbynet.aptoslabs.com/nocode/v1/public/cmforrguw0042s601fn71f9l2/v1/graphql",
     rpc: "https://api.shelbynet.shelby.xyz/shelby"
-  },
-  testnet: {
-    aptNetwork: AptosNetwork.TESTNET,
-    fullnode: "https://api.testnet.aptoslabs.com/v1",
-    indexer: "https://api.testnet.aptoslabs.com/nocode/v1/public/cmlfqs5wt00qrs601zt5s4kfj/v1/graphql",
-    rpc: "https://api.testnet.shelby.xyz/shelby"
-  },
-  mainnet: {
-    aptNetwork: AptosNetwork.MAINNET,
-    fullnode: "https://api.mainnet.aptoslabs.com/v1",
-    indexer: "",
-    rpc: ""
   }
 };
 
