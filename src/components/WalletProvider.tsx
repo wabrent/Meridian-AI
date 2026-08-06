@@ -81,10 +81,7 @@ export function WalletProvider({ children }: PropsWithChildren) {
   const currentConfig = networkConfig[selectedNetwork];
 
   return (
-    <AptosWalletAdapterProvider
-      autoConnect={false}
-      wallets={wallets}
-    >
+    <AptosWalletAdapterProvider autoConnect={false}>
       <QueryClientProvider client={queryClient}>
         <NetworkChecker>
           {children}
