@@ -247,6 +247,12 @@ export default function AppDashboard() {
       return;
     }
 
+    // Prevent double submission
+    if (status === "uploading" || status === "signing" || status === "generating") {
+      console.log("Upload already in progress - skipping duplicate");
+      return;
+    }
+
     try {
       setStatus("generating");
       setUploadProgress(10);
@@ -352,17 +358,19 @@ export default function AppDashboard() {
         txHash: displayTxHash,
         fullTxHash: fullTxHash
       }, ...prev]);
-      showToast("Upload successful! Hash: " + displayTxHash, "success");
+      
+      showToast("File uploaded to Shelbynet! Hash: " + displayTxHash, "success");
       setFiles([]);
       
     } catch (error: any) {
-      console.error(error);
+      console.error("Upload error:", error);
+      // If upload already succeeded, don't show error
       setErrorMessage(error?.message || "An unexpected error occurred");
       setStatus("error");
       setUploadProgress(0);
       showToast("Error: " + (error?.message || "Unknown error"), "error");
     }
-  }, [account, files, signAndSubmitTransaction, contextClient]);
+  }, [account, files, signAndSubmitTransaction, contextClient, status]);
 
   return (
     <div className={`min-h-screen font-sans relative overflow-hidden flex transition-colors duration-300 ${
