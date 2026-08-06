@@ -93,9 +93,6 @@ export function WalletProvider({ children }: PropsWithChildren) {
     <AptosWalletAdapterProvider
       autoConnect={false}
       wallets={wallets}
-      dappConfig={{
-        network: currentConfig.aptNetwork,
-      }}
     >
       <NetworkChecker>
         {children}
