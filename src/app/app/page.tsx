@@ -30,6 +30,7 @@ export default function AppDashboard() {
   const { isCorrectNetwork } = useNetwork();
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const [files, setFiles] = useState<File[]>([]);
+  const [showWalletSelector, setShowWalletSelector] = useState(false);
   const [status, setStatus] = useState<"idle" | "generating" | "signing" | "uploading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -186,13 +187,22 @@ export default function AppDashboard() {
   const handleConnect = async () => {
     console.log("Connecting to wallet...");
     console.log("Available wallets:", wallets);
-    try {
-      if (wallets && wallets.length > 0) {
-        // Connect to the first available wallet (Petra)
-        await connect(wallets[0].name);
-      } else {
+    // Show wallet selector if multiple wallets available
+    if (wallets && wallets.length > 0) {
+      setShowWalletSelector(true);
+    } else {
+      try {
         await connect("Petra");
+      } catch (e) {
+        console.error("Connect error:", e);
       }
+    }
+  };
+
+  const handleWalletSelect = async (wallet: any) => {
+    setShowWalletSelector(false);
+    try {
+      await connect(wallet.name);
     } catch (e) {
       console.error("Connect error:", e);
     }
@@ -299,6 +309,28 @@ export default function AppDashboard() {
         ? "bg-[#050505] text-neutral-200" 
         : "bg-gray-50 text-gray-900"
     }`}>
+      
+      {/* Wallet Selector Modal */}
+      {showWalletSelector && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowWalletSelector(false)}>
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-white mb-4">Select Wallet</h3>
+            <div className="space-y-2">
+              {wallets.map((w: any) => (
+                <button 
+                  key={w.name}
+                  onClick={() => handleWalletSelect(w)}
+                  className="w-full p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-emerald-500/50 transition-colors flex items-center justify-between"
+                >
+                  <span className="text-white font-medium">{w.name}</span>
+                  <span className="text-xs text-neutral-500">Connect</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setShowWalletSelector(false)} className="mt-4 w-full py-2 text-neutral-400 hover:text-white">Cancel</button>
+          </div>
+        </div>
+      )}
       
       {/* Toast Notifications */}
       {toast && (
