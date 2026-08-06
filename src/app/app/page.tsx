@@ -285,7 +285,7 @@ export default function AppDashboard() {
         typeArguments: [],
         functionArguments: [
           files[0].name,
-          null,
+          "shelbynet-1",
           null,
           expirationMicros,
           merkleRootBytes,
