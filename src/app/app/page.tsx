@@ -265,11 +265,18 @@ export default function AppDashboard() {
       setStatus("signing");
       console.log("Step 2: Creating registration payload...");
       
-      // Register blob on-chain via wallet (10 args matching Shelbynet contract)
+      // Register blob on-chain via wallet (10 args matching Shelbynet contract v2)
       const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
-      const merkleRootHex = typeof commitments.blob_merkle_root === 'string' 
-        ? commitments.blob_merkle_root
-        : `0x${Array.from(commitments.blob_merkle_root as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`;
+      const merkleRootBytes = typeof commitments.blob_merkle_root === 'string'
+        ? (() => {
+            const hex = commitments.blob_merkle_root.replace('0x', '');
+            const bytes = new Uint8Array(hex.length / 2);
+            for (let i = 0; i < bytes.length; i++) {
+              bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+            }
+            return bytes;
+          })()
+        : commitments.blob_merkle_root as Uint8Array;
       const expirationMicros = (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000;
       const numChunksets = expectedTotalChunksets(commitments.raw_data_size);
       
@@ -278,10 +285,10 @@ export default function AppDashboard() {
         typeArguments: [],
         functionArguments: [
           files[0].name,
-          ["shelbynet-1"],
-          [],
+          null,
+          null,
           expirationMicros,
-          merkleRootHex,
+          merkleRootBytes,
           numChunksets,
           commitments.raw_data_size,
           0,

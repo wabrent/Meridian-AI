@@ -11,8 +11,8 @@
   "dependencies": {
     "@aptos-labs/ts-sdk": "^6.3.1",
     "@aptos-labs/wallet-adapter-react": "^8.3.3",
-    "@shelby-protocol/react": "latest",
-    "@shelby-protocol/sdk": "latest",
+    "@shelby-protocol/react": "^4.0.1",
+    "@shelby-protocol/sdk": "^0.6.0",
     "@tanstack/react-query": "^5",
     "@telegram-apps/bridge": "^2.11.0",
     "aptos": "^1.22.1",
