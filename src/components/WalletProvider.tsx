@@ -3,7 +3,6 @@
 import { AptosWalletAdapterProvider, useWallet } from "@aptos-labs/wallet-adapter-react";
 import { PetraWallet } from "petra-plugin-wallet-adapter";
 import { PropsWithChildren, createContext, useContext, useState, useMemo } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 import { Network as AptosNetwork, AptosConfig } from "@aptos-labs/ts-sdk";
 
@@ -26,8 +25,6 @@ export const NetworkContext = createContext<NetworkContextType>({
 export const useNetwork = () => useContext(NetworkContext);
 
 const wallets = [new PetraWallet()];
-
-const queryClient = new QueryClient();
 
 const networkConfig: Record<NetworkName, { aptNetwork: AptosNetwork; fullnode: string; indexer: string; rpc: string }> = {
   shelbynet: {
@@ -93,19 +90,17 @@ export function WalletProvider({ children }: PropsWithChildren) {
   const currentConfig = networkConfig[selectedNetwork];
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AptosWalletAdapterProvider
-        autoConnect={false}
-        wallets={wallets}
-        dappConfig={{
-          network: currentConfig.aptNetwork,
-        }}
-      >
-        <NetworkChecker>
-          {children}
-        </NetworkChecker>
-      </AptosWalletAdapterProvider>
-    </QueryClientProvider>
+    <AptosWalletAdapterProvider
+      autoConnect={false}
+      wallets={wallets}
+      dappConfig={{
+        network: currentConfig.aptNetwork,
+      }}
+    >
+      <NetworkChecker>
+        {children}
+      </NetworkChecker>
+    </AptosWalletAdapterProvider>
   );
 }
 
