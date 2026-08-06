@@ -9,7 +9,7 @@ import { useNetwork, networkLabels } from "@/components/WalletProvider";
 import type { NetworkName } from "@/components/WalletProvider";
 import { useUploadBlobs } from "@shelby-protocol/react";
 import { ShelbyClient, ShelbyBlobClient, createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets } from "@shelby-protocol/sdk/browser";
-import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { Aptos, AptosConfig, Network, AccountAddress } from "@aptos-labs/ts-sdk";
 
 type TabType = "upload" | "history" | "certificates";
 
@@ -318,7 +318,7 @@ export default function AppDashboard() {
       const deployerAddr = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
       const uidEntries = ShelbyBlobClient.registeredBlobUids(
         (txn as any).events || [],
-        deployerAddr
+        AccountAddress.fromString(deployerAddr)
       );
       console.log("UID entries:", uidEntries);
       
