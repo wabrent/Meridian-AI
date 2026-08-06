@@ -28,7 +28,7 @@ const safeAddress = (account: any): string => {
 };
 
 export default function AppDashboard() {
-  const { account, connected, connect, disconnect, signAndSubmitTransaction } = useWallet();
+  const { account, connected, connect, disconnect, wallets, signAndSubmitTransaction } = useWallet();
   const { isCorrectNetwork } = useNetwork();
   const [activeTab, setActiveTab] = useState<TabType>("upload");
   const [files, setFiles] = useState<File[]>([]);
@@ -189,8 +189,12 @@ export default function AppDashboard() {
     console.log("Connecting to wallet...");
     console.log("Available wallets:", wallets);
     try {
-      // Direct connect to Petra
-      await connect("Petra");
+      if (wallets && wallets.length > 0) {
+        // Connect to the first available wallet (Petra)
+        await connect(wallets[0].name);
+      } else {
+        await connect("Petra");
+      }
     } catch (e) {
       console.error("Connect error:", e);
     }
