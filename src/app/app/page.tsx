@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useNetwork, networkLabels } from "@/components/WalletProvider";
 import type { NetworkName } from "@/components/WalletProvider";
 import { useUploadBlobs } from "@shelby-protocol/react";
-import { ShelbyClient, createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets } from "@shelby-protocol/sdk/browser";
+import { ShelbyClient, ShelbyBlobClient, createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets } from "@shelby-protocol/sdk/browser";
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 
 type TabType = "upload" | "history" | "certificates";
@@ -306,22 +306,35 @@ export default function AppDashboard() {
       console.log("Transaction submitted:", transactionSubmitted.hash);
       setUploadProgress(60);
       
-      // Wait for transaction confirmation
+      // Wait for transaction confirmation and get events for UID
       console.log("Waiting for transaction confirmation...");
-      await aptosClient.waitForTransaction({
+      const txn = await aptosClient.waitForTransaction({
         transactionHash: transactionSubmitted.hash,
       });
       console.log("Transaction confirmed!");
       setUploadProgress(75);
       
+      // Extract UID from BlobRegisteredEvent
+      const deployerAddr = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
+      const uidEntries = ShelbyBlobClient.registeredBlobUids(
+        (txn as any).events || [],
+        deployerAddr
+      );
+      console.log("UID entries:", uidEntries);
+      
+      if (uidEntries.length === 0) {
+        throw new Error("No BlobRegisteredEvent found in transaction. Registration may have failed.");
+      }
+      
       setStatus("uploading");
       console.log("Step 3: Uploading data via RPC...");
       
-      // Upload data directly via RPC (bypass React hooks)
-      await contextClient.rpc.putBlob({
+      // Upload data directly via RPC using new chunkset API
+      await contextClient.rpc.putBlobChunksets({
         account: account.address,
-        blobName: files[0].name,
+        uid: uidEntries[0].uid,
         blobData: data,
+        commitments,
       });
       
       console.log("Upload successful!");
