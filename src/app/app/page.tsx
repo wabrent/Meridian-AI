@@ -8,9 +8,17 @@ import { useRouter } from "next/navigation";
 import { useNetwork, networkLabels } from "@/components/WalletProvider";
 import type { NetworkName } from "@/components/WalletProvider";
 import { useUploadBlobs } from "@shelby-protocol/react";
-import { ShelbyClient } from "@shelby-protocol/sdk/browser";
+import { ShelbyClient, createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets } from "@shelby-protocol/sdk/browser";
+import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
 
 type TabType = "upload" | "history" | "certificates";
+
+const aptosClient = new Aptos(
+  new AptosConfig({
+    network: Network.SHELBYNET,
+    fullnode: "https://api.shelbynet.shelby.xyz/v1",
+  }),
+);
 
 interface UploadedFile {
   name: string;
@@ -223,41 +231,6 @@ export default function AppDashboard() {
   };
 
   const { shelbyClient: contextClient } = useNetwork();
-  
-  const uploadBlobs = useUploadBlobs({
-    client: contextClient,
-    onSuccess: (data: any) => {
-      console.log("Upload successful! Full response:", JSON.stringify(data, null, 2));
-      setStatus("success");
-      setUploadProgress(100);
-      
-      let txHash = "unknown";
-      if (data?.hash) txHash = data.hash;
-      else if (data?.txHash) txHash = data.txHash;
-      else if (data?.data?.hash) txHash = data.data.hash;
-      
-      const fileName = files[0]?.name || "unknown";
-      const fullTxHash = txHash !== "unknown" ? txHash : "";
-      const displayTxHash = fullTxHash ? (fullTxHash.slice(0, 8) + "...") : "Pending";
-      
-      setUploadedFiles(prev => [{
-        name: fileName,
-        size: files[0]?.size || 0,
-        date: new Date().toISOString().split('T')[0],
-        txHash: displayTxHash,
-        fullTxHash: fullTxHash
-      }, ...prev]);
-      showToast("Upload successful! Hash: " + displayTxHash, "success");
-      setFiles([]);
-    },
-    onError: (error: any) => {
-      console.error("Upload error:", error);
-      setErrorMessage(error?.message || "Upload failed");
-      setStatus("error");
-      setUploadProgress(0);
-      showToast("Upload failed: " + (error?.message || "Unknown error"), "error");
-    },
-  });
 
   const handleUpload = useCallback(async () => {
     console.log("=== Upload Check ===");
@@ -277,25 +250,90 @@ export default function AppDashboard() {
     try {
       setStatus("generating");
       setUploadProgress(10);
-      console.log("Starting upload via SDK...");
+      console.log("Step 1: Generating commitments...");
       
       const arrayBuffer = await files[0].arrayBuffer();
-      const blobData = new Uint8Array(arrayBuffer);
+      const data = new Uint8Array(arrayBuffer);
       setUploadProgress(20);
       
-      const expirationMicros = Date.now() * 1000 + 30 * 24 * 60 * 60 * 1000 * 1000; // 30 days
+      // Generate commitments
+      const provider = await createDefaultErasureCodingProvider();
+      const commitments = await generateCommitments(provider, data);
+      console.log("Commitments generated:", commitments);
+      setUploadProgress(40);
       
-      console.log("Calling useUploadBlobs...");
-      setUploadProgress(30);
+      setStatus("signing");
+      console.log("Step 2: Creating registration payload...");
       
-      uploadBlobs.mutate({
-        signer: { 
-          account: account.address, 
-          signAndSubmitTransaction 
-        },
-        blobs: [{ blobName: files[0].name, blobData }],
-        expirationMicros,
+      // Register blob on-chain via wallet (10 args matching Shelbynet contract)
+      const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
+      const merkleRootHex = typeof commitments.blob_merkle_root === 'string' 
+        ? commitments.blob_merkle_root
+        : `0x${Array.from(commitments.blob_merkle_root as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`;
+      const expirationMicros = (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000;
+      const numChunksets = expectedTotalChunksets(commitments.raw_data_size);
+      
+      const payload = {
+        function: `${deployerAddress}::blob_metadata::register_blob` as `${string}::${string}::${string}`,
+        typeArguments: [],
+        functionArguments: [
+          files[0].name,
+          ["shelbynet-1"],
+          [],
+          expirationMicros,
+          merkleRootHex,
+          numChunksets,
+          commitments.raw_data_size,
+          0,
+          0,
+          0
+        ]
+      };
+      
+      console.log("Payload args:", JSON.stringify(payload.functionArguments));
+      
+      console.log("Submitting registration transaction...");
+      const transactionSubmitted = await signAndSubmitTransaction({
+        data: payload
       });
+      console.log("Transaction submitted:", transactionSubmitted.hash);
+      setUploadProgress(60);
+      
+      // Wait for transaction confirmation
+      console.log("Waiting for transaction confirmation...");
+      await aptosClient.waitForTransaction({
+        transactionHash: transactionSubmitted.hash,
+      });
+      console.log("Transaction confirmed!");
+      setUploadProgress(75);
+      
+      setStatus("uploading");
+      console.log("Step 3: Uploading data via RPC...");
+      
+      // Upload data directly via RPC (bypass React hooks)
+      await contextClient.rpc.putBlob({
+        account: account.address,
+        blobName: files[0].name,
+        blobData: data,
+      });
+      
+      console.log("Upload successful!");
+      setUploadProgress(100);
+      setStatus("success");
+      
+      const fileName = files[0]?.name || "unknown";
+      const fullTxHash = transactionSubmitted?.hash || "";
+      const displayTxHash = fullTxHash ? (fullTxHash.slice(0, 8) + "...") : "Pending";
+      
+      setUploadedFiles(prev => [{
+        name: fileName,
+        size: files[0]?.size || 0,
+        date: new Date().toISOString().split('T')[0],
+        txHash: displayTxHash,
+        fullTxHash: fullTxHash
+      }, ...prev]);
+      showToast("Upload successful! Hash: " + displayTxHash, "success");
+      setFiles([]);
       
     } catch (error: any) {
       console.error(error);
@@ -304,7 +342,7 @@ export default function AppDashboard() {
       setUploadProgress(0);
       showToast("Error: " + (error?.message || "Unknown error"), "error");
     }
-  }, [account, files, signAndSubmitTransaction, uploadBlobs]);
+  }, [account, files, signAndSubmitTransaction, contextClient]);
 
   return (
     <div className={`min-h-screen font-sans relative overflow-hidden flex transition-colors duration-300 ${
@@ -565,13 +603,15 @@ export default function AppDashboard() {
                       <div className="mt-6 flex flex-col items-center">
                         <button 
                           onClick={handleUpload} 
-                          disabled={uploadBlobs.isPending}
+                          disabled={status === "generating" || status === "signing" || status === "uploading"}
                           className="w-full h-12 rounded-xl bg-white text-black font-semibold hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                          {uploadBlobs.isPending || status === "generating" ? (
+                          {status === "generating" || status === "signing" || status === "uploading" ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
-                              Uploading to Shelby...
+                              {status === "generating" && "Generating commitments..."}
+                              {status === "signing" && "Awaiting wallet signature..."}
+                              {status === "uploading" && "Uploading to Shelby..."}
                             </>
                           ) : (
                             'Sign & Upload to ' + networkLabels[selectedNetwork]
