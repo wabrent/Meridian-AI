@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff, Trash2, QrCode } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/components/WalletProvider";
+import { useUploadBlobs } from "@shelby-protocol/react";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 
 type TabType = "upload" | "history" | "certificates";
@@ -236,6 +237,8 @@ export default function AppDashboard() {
 
   const { shelbyClient: contextClient } = useNetwork();
 
+  const uploadBlobs = useUploadBlobs({ client: contextClient });
+
   const handleUpload = useCallback(async () => {
     console.log("=== Upload Check ===");
     console.log("account:", account);
@@ -252,7 +255,7 @@ export default function AppDashboard() {
     }
 
     // Prevent double submission
-    if (status === "generating") {
+    if (uploadBlobs.isPending || status === "generating") {
       console.log("Upload already in progress - skipping duplicate");
       return;
     }
@@ -271,10 +274,12 @@ export default function AppDashboard() {
       console.log("Uploading blob...");
       setUploadProgress(30);
       
-      // Use ShelbyClient batchUpload (SDK 0.2.3)
-      await contextClient.batchUpload({
+      await uploadBlobs.mutateAsync({
+        signer: {
+          account: account.address,
+          signAndSubmitTransaction
+        },
         blobs: [{ blobName: files[0].name, blobData }],
-        signer: account as any,
         expirationMicros,
       });
       
@@ -301,7 +306,7 @@ export default function AppDashboard() {
       setUploadProgress(0);
       showToast("Error: " + (error?.message || "Unknown error"), "error");
     }
-  }, [account, files, signAndSubmitTransaction, contextClient, status, accountAddress]);
+  }, [account, files, signAndSubmitTransaction, contextClient, status, uploadBlobs, accountAddress]);
 
   return (
     <div className={`min-h-screen font-sans relative overflow-hidden flex transition-colors duration-300 ${
