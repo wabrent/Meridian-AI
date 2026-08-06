@@ -1,7 +1,6 @@
 "use client";
 
 import { AptosWalletAdapterProvider, useWallet } from "@aptos-labs/wallet-adapter-react";
-import { PetraWallet } from "petra-plugin-wallet-adapter";
 import { PropsWithChildren, createContext, useContext, useState, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
@@ -24,8 +23,6 @@ export const NetworkContext = createContext<NetworkContextType>({
 });
 
 export const useNetwork = () => useContext(NetworkContext);
-
-const wallets = [new PetraWallet()];
 
 const queryClient = new QueryClient();
 

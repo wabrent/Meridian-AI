@@ -6,17 +6,10 @@ import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, S
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/components/WalletProvider";
-import { ShelbyClient, ShelbyBlobClient, createDefaultErasureCodingProvider, generateCommitments, expectedTotalChunksets } from "@shelby-protocol/sdk/browser";
-import { Aptos, AptosConfig, Network, AccountAddress } from "@aptos-labs/ts-sdk";
+import { useUploadBlobs } from "@shelby-protocol/react";
+import { ShelbyClient } from "@shelby-protocol/sdk/browser";
 
 type TabType = "upload" | "history" | "certificates";
-
-const aptosClient = new Aptos(
-  new AptosConfig({
-    network: Network.SHELBYNET,
-    fullnode: "https://api.shelbynet.shelby.xyz/v1",
-  }),
-);
 
 interface UploadedFile {
   name: string;
@@ -230,6 +223,8 @@ export default function AppDashboard() {
   };
 
   const { shelbyClient: contextClient } = useNetwork();
+  
+  const uploadBlobs = useUploadBlobs({ client: contextClient });
 
   const handleUpload = useCallback(async () => {
     console.log("=== Upload Check ===");
@@ -247,7 +242,7 @@ export default function AppDashboard() {
     }
 
     // Prevent double submission
-    if (status === "uploading" || status === "signing" || status === "generating") {
+    if (uploadBlobs.isPending || status === "generating") {
       console.log("Upload already in progress - skipping duplicate");
       return;
     }
@@ -255,121 +250,51 @@ export default function AppDashboard() {
     try {
       setStatus("generating");
       setUploadProgress(10);
-      console.log("Step 1: Generating commitments...");
+      console.log("Starting upload...");
       
       const arrayBuffer = await files[0].arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
+      const blobData = new Uint8Array(arrayBuffer);
       setUploadProgress(20);
       
-      // Generate commitments
-      const provider = await createDefaultErasureCodingProvider();
-      const commitments = await generateCommitments(provider, data);
-      console.log("Commitments generated:", commitments);
-      setUploadProgress(40);
+      const expirationMicros = Date.now() * 1000 + 30 * 24 * 60 * 60 * 1000 * 1000; // 30 days
       
-      setStatus("signing");
-      console.log("Step 2: Creating registration payload...");
+      console.log("Uploading blob...");
+      setUploadProgress(30);
       
-      // Register blob on-chain via wallet (10 args matching Shelbynet contract v2)
-      const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
-      const merkleRootBytes = typeof commitments.blob_merkle_root === 'string'
-        ? (() => {
-            const hex = commitments.blob_merkle_root.replace('0x', '');
-            const bytes = new Uint8Array(hex.length / 2);
-            for (let i = 0; i < bytes.length; i++) {
-              bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
-            }
-            return bytes;
-          })()
-        : commitments.blob_merkle_root as Uint8Array;
-      const expirationMicros = (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000;
-      const numChunksets = expectedTotalChunksets(commitments.raw_data_size);
-      
-      const payload = {
-        function: `${deployerAddress}::blob_metadata::register_blob` as `${string}::${string}::${string}`,
-        typeArguments: [],
-        functionArguments: [
-          files[0].name,
-          "shelbynet-1",
-          null,
-          expirationMicros,
-          merkleRootBytes,
-          numChunksets,
-          commitments.raw_data_size,
-          0,
-          0,
-          0
-        ]
-      };
-      
-      console.log("Payload args:", JSON.stringify(payload.functionArguments));
-      
-      console.log("Submitting registration transaction...");
-      const transactionSubmitted = await signAndSubmitTransaction({
-        data: payload
-      });
-      console.log("Transaction submitted:", transactionSubmitted.hash);
-      setUploadProgress(60);
-      
-      // Wait for transaction confirmation and get events for UID
-      console.log("Waiting for transaction confirmation...");
-      const txn = await aptosClient.waitForTransaction({
-        transactionHash: transactionSubmitted.hash,
-      });
-      console.log("Transaction confirmed!");
-      setUploadProgress(75);
-      
-      // Extract UID from BlobRegisteredEvent
-      const deployerAddr = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
-      const uidEntries = ShelbyBlobClient.registeredBlobUids(
-        (txn as any).events || [],
-        AccountAddress.fromString(deployerAddr)
-      );
-      console.log("UID entries:", uidEntries);
-      
-      if (uidEntries.length === 0) {
-        throw new Error("No BlobRegisteredEvent found in transaction. Registration may have failed.");
-      }
-      
-      setStatus("uploading");
-      console.log("Step 3: Uploading data via RPC...");
-      
-      // Upload data directly via RPC using new chunkset API
-      await contextClient.rpc.putBlobChunksets({
-        accountAddress: accountAddress,
-        uid: uidEntries[0].uid,
-        blobData: data,
-        commitments,
+      const result = await uploadBlobs.mutateAsync({
+        signer: {
+          account: account.address,
+          signAndSubmitTransaction
+        },
+        blobs: [{ blobName: files[0].name, blobData }],
+        expirationMicros,
       });
       
+      console.log("Upload result:", result);
       console.log("Upload successful!");
       setUploadProgress(100);
       setStatus("success");
       
       const fileName = files[0]?.name || "unknown";
-      const fullTxHash = transactionSubmitted?.hash || "";
-      const displayTxHash = fullTxHash ? (fullTxHash.slice(0, 8) + "...") : "Pending";
       
       setUploadedFiles(prev => [{
         name: fileName,
         size: files[0]?.size || 0,
         date: new Date().toISOString().split('T')[0],
-        txHash: displayTxHash,
-        fullTxHash: fullTxHash
+        txHash: "Confirmed"
       }, ...prev]);
       
-      showToast("File uploaded to Shelbynet! Hash: " + displayTxHash, "success");
+      showToast("File uploaded to Shelbynet!", "success");
       setFiles([]);
       
     } catch (error: any) {
       console.error("Upload error:", error);
-      // If upload already succeeded, don't show error
       setErrorMessage(error?.message || "An unexpected error occurred");
       setStatus("error");
       setUploadProgress(0);
       showToast("Error: " + (error?.message || "Unknown error"), "error");
     }
-  }, [account, files, signAndSubmitTransaction, contextClient, status]);
+  }, [account, files, signAndSubmitTransaction, contextClient, status, uploadBlobs]);
 
   return (
     <div className={`min-h-screen font-sans relative overflow-hidden flex transition-colors duration-300 ${
