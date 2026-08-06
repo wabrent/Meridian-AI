@@ -3,7 +3,6 @@
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { UploadCloud, CheckCircle2, AlertCircle, Loader2, ArrowLeft, FileText, Shield, Database, ExternalLink, History, LogOut, WifiOff, Trash2, QrCode } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/components/WalletProvider";
 import { ShelbyClient } from "@shelby-protocol/sdk/browser";
@@ -619,7 +618,7 @@ export default function AppDashboard() {
                               rel="noopener noreferrer"
                               className="text-xs text-emerald-500 hover:underline flex items-center gap-1 mt-1"
                             >
-                              <Link className="w-3 h-3" /> Explorer
+                              <ExternalLink className="w-3 h-3" /> Explorer
                             </a>
                           )}
                         </div>
