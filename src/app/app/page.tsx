@@ -331,7 +331,7 @@ export default function AppDashboard() {
       
       // Upload data directly via RPC using new chunkset API
       await contextClient.rpc.putBlobChunksets({
-        account: account.address,
+        accountAddress: account.address.toString(),
         uid: uidEntries[0].uid,
         blobData: data,
         commitments,
