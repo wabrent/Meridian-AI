@@ -264,12 +264,11 @@ export default function AppDashboard() {
       setStatus("signing");
       console.log("Step 2: Creating registration payload...");
       
-      // Step 2: Create registration payload manually for Shelbynet (7 args)
+      // Step 2: Create registration payload for Shelbynet contract (10 args)
       const deployerAddress = process.env.NEXT_PUBLIC_SHELBY_CONTRACT_ADDRESS || "0x85fdb9a176ab8ef1d9d9c1b60d60b3924f0800ac1de1cc2085fb0b8bb4988e6a";
-      const blobNameHex = Array.from(new TextEncoder().encode(files[0].name)).map(b => b.toString(16).padStart(2, '0')).join('');
       const merkleRootHex = typeof commitments.blob_merkle_root === 'string' 
-        ? commitments.blob_merkle_root.replace('0x', '')
-        : Array.from(commitments.blob_merkle_root as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('');
+        ? commitments.blob_merkle_root
+        : `0x${Array.from(commitments.blob_merkle_root as Uint8Array).map((b: number) => b.toString(16).padStart(2, '0')).join('')}`;
       const expirationMicros = (1000 * 60 * 60 * 24 * 30 + Date.now()) * 1000;
       const numChunksets = expectedTotalChunksets(commitments.raw_data_size);
       
@@ -277,17 +276,20 @@ export default function AppDashboard() {
         function: `${deployerAddress}::blob_metadata::register_blob` as `${string}::${string}::${string}`,
         typeArguments: [],
         functionArguments: [
-          account.address.toString(),
-          `0x${blobNameHex}`,
-          commitments.raw_data_size,
-          `0x${merkleRootHex}`,
-          expirationMicros.toString(),
+          files[0].name,
+          ["shelbynet-1"],
+          [],
+          expirationMicros,
+          merkleRootHex,
           numChunksets,
-          "0"
+          commitments.raw_data_size,
+          0,
+          0,
+          0
         ]
       };
       
-      console.log("Payload args:", payload.functionArguments);
+      console.log("Payload args:", JSON.stringify(payload.functionArguments));
       
       console.log("Submitting registration transaction...");
       // Submit registration transaction
